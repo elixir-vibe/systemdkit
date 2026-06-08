@@ -4,18 +4,21 @@ defmodule Systemd.Manager do
   """
 
   alias Systemd.{DBus, Error, Job, Unit, UnitFileOperation, UnitObject}
+  alias Systemd.Manager.Options
   alias Systemd.TransientUnit.{AuxUnit, Property}
 
   @destination "org.freedesktop.systemd1"
   @path "/org/freedesktop/systemd1"
   @interface "org.freedesktop.systemd1.Manager"
-  @default_mode "replace"
 
   @doc """
   Connects to the system bus.
   """
   @spec connect(keyword()) :: {:ok, pid()} | {:error, Error.t()}
-  def connect(opts \\ []), do: DBus.connect(Keyword.get(opts, :bus, :system), opts)
+  def connect(opts \\ []) do
+    opts = Options.new(opts)
+    DBus.connect(opts.bus, [])
+  end
 
   @doc """
   Lists currently loaded systemd units.
@@ -86,7 +89,7 @@ defmodule Systemd.Manager do
   @spec start_transient_unit(pid(), String.t(), [Property.t()], keyword()) ::
           {:ok, Job.t()} | {:error, Error.t()}
   def start_transient_unit(conn, unit_name, properties, opts \\ []) do
-    mode = Keyword.get(opts, :mode, @default_mode)
+    mode = Options.new(opts).mode
     properties = Enum.map(properties, &Property.to_dbus/1)
     aux_units = opts |> Keyword.get(:aux_units, []) |> Enum.map(&AuxUnit.to_dbus/1)
 
@@ -107,8 +110,9 @@ defmodule Systemd.Manager do
   @spec enable_unit_files(pid(), [String.t()], keyword()) ::
           {:ok, UnitFileOperation.t()} | {:error, Error.t()}
   def enable_unit_files(conn, files, opts \\ []) do
-    runtime? = Keyword.get(opts, :runtime, false)
-    force? = Keyword.get(opts, :force, false)
+    opts = Options.new(opts)
+    runtime? = opts.runtime
+    force? = opts.force
 
     with {:ok, [carries_install_info?, changes]} <-
            call(conn, "EnableUnitFiles", [files, runtime?, force?], "asbb") do
@@ -122,7 +126,7 @@ defmodule Systemd.Manager do
   @spec disable_unit_files(pid(), [String.t()], keyword()) ::
           {:ok, UnitFileOperation.t()} | {:error, Error.t()}
   def disable_unit_files(conn, files, opts \\ []) do
-    runtime? = Keyword.get(opts, :runtime, false)
+    runtime? = Options.new(opts).runtime
 
     with {:ok, [changes]} <- call(conn, "DisableUnitFiles", [files, runtime?], "asb") do
       {:ok, UnitFileOperation.new(changes)}
@@ -135,8 +139,9 @@ defmodule Systemd.Manager do
   @spec mask_unit_files(pid(), [String.t()], keyword()) ::
           {:ok, UnitFileOperation.t()} | {:error, Error.t()}
   def mask_unit_files(conn, files, opts \\ []) do
-    runtime? = Keyword.get(opts, :runtime, false)
-    force? = Keyword.get(opts, :force, false)
+    opts = Options.new(opts)
+    runtime? = opts.runtime
+    force? = opts.force
 
     with {:ok, [changes]} <- call(conn, "MaskUnitFiles", [files, runtime?, force?], "asbb") do
       {:ok, UnitFileOperation.new(changes)}
@@ -149,7 +154,7 @@ defmodule Systemd.Manager do
   @spec unmask_unit_files(pid(), [String.t()], keyword()) ::
           {:ok, UnitFileOperation.t()} | {:error, Error.t()}
   def unmask_unit_files(conn, files, opts \\ []) do
-    runtime? = Keyword.get(opts, :runtime, false)
+    runtime? = Options.new(opts).runtime
 
     with {:ok, [changes]} <- call(conn, "UnmaskUnitFiles", [files, runtime?], "asb") do
       {:ok, UnitFileOperation.new(changes)}
@@ -162,8 +167,9 @@ defmodule Systemd.Manager do
   @spec link_unit_files(pid(), [String.t()], keyword()) ::
           {:ok, UnitFileOperation.t()} | {:error, Error.t()}
   def link_unit_files(conn, files, opts \\ []) do
-    runtime? = Keyword.get(opts, :runtime, false)
-    force? = Keyword.get(opts, :force, false)
+    opts = Options.new(opts)
+    runtime? = opts.runtime
+    force? = opts.force
 
     with {:ok, [changes]} <- call(conn, "LinkUnitFiles", [files, runtime?, force?], "asbb") do
       {:ok, UnitFileOperation.new(changes)}
@@ -179,7 +185,7 @@ defmodule Systemd.Manager do
   end
 
   defp unit_operation(conn, member, unit_name, opts) do
-    mode = Keyword.get(opts, :mode, @default_mode)
+    mode = Options.new(opts).mode
 
     with {:ok, [object_path]} <- call(conn, member, [unit_name, mode], "ss") do
       {:ok, %Job{object_path: object_path}}

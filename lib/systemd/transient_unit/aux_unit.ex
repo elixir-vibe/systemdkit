@@ -10,6 +10,7 @@ defmodule Systemd.TransientUnit.AuxUnit do
           properties: [Property.t()]
         }
 
+  @enforce_keys [:name]
   defstruct [:name, properties: []]
 
   @doc """

@@ -7,6 +7,7 @@ defmodule Systemd do
   """
 
   alias Systemd.{Error, Manager}
+  alias Systemd.Manager.Options
 
   @type connection_option :: {:bus, Systemd.DBus.bus()}
 
@@ -140,13 +141,13 @@ defmodule Systemd do
   end
 
   defp run_unit_operation(operation, name, opts) do
-    wait? = Keyword.get(opts, :wait, true)
-    await_opts = Keyword.take(opts, [:timeout, :interval])
-    manager_opts = Keyword.take(opts, [:mode])
+    opts = Options.new(opts)
+    wait? = opts.wait
+    await_opts = Options.await_opts(opts)
 
-    with_connection(opts, fn conn ->
+    with_connection([bus: opts.bus], fn conn ->
       Manager
-      |> apply(operation, [conn, name, manager_opts])
+      |> apply(operation, [conn, name, opts])
       |> maybe_await_job(conn, wait?, await_opts)
     end)
   end

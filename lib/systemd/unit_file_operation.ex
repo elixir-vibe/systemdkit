@@ -13,6 +13,12 @@ defmodule Systemd.UnitFileOperation do
   defstruct changes: [], carries_install_info: nil
 
   @doc false
+  @spec new_from_changes([UnitFileChange.t()], keyword()) :: t()
+  def new_from_changes(changes, opts \\ []) when is_list(changes) do
+    %__MODULE__{changes: changes, carries_install_info: Keyword.get(opts, :carries_install_info)}
+  end
+
+  @doc false
   @spec new([term()], keyword()) :: t()
   def new(changes, opts \\ []) when is_list(changes) do
     %__MODULE__{

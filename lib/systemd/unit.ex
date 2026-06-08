@@ -16,6 +16,7 @@ defmodule Systemd.Unit do
           job_path: String.t()
         }
 
+  @enforce_keys [:name]
   defstruct [
     :name,
     :description,
@@ -28,6 +29,10 @@ defmodule Systemd.Unit do
     :job_type,
     :job_path
   ]
+
+  @doc false
+  @spec new(keyword()) :: t()
+  def new(attrs) when is_list(attrs), do: struct!(__MODULE__, attrs)
 
   @doc false
   @spec from_list_units_row(tuple() | list()) :: t()

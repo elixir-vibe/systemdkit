@@ -8,9 +8,14 @@ defmodule Systemd.Job do
   @interface "org.freedesktop.systemd1.Job"
 
   @type state :: :waiting | :running | :done | :unknown
+  @enforce_keys [:object_path]
   @type t :: %__MODULE__{object_path: String.t()}
 
   defstruct [:object_path]
+
+  @doc false
+  @spec new(String.t()) :: t()
+  def new(object_path) when is_binary(object_path), do: %__MODULE__{object_path: object_path}
 
   @doc """
   Reads a job property.

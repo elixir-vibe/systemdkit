@@ -11,14 +11,21 @@ defmodule Systemd.UnitFileChange do
           target: String.t()
         }
 
+  @enforce_keys [:action, :path, :target]
   defstruct [:action, :path, :target]
+
+  @doc false
+  @spec new(action(), String.t(), String.t()) :: t()
+  def new(action, path, target) when is_atom(action) and is_binary(path) and is_binary(target) do
+    %__MODULE__{action: action, path: path, target: target}
+  end
 
   @doc false
   @spec from_dbus(tuple() | list()) :: t()
   def from_dbus({action, path, target}), do: from_dbus([action, path, target])
 
   def from_dbus([action, path, target]) do
-    %__MODULE__{action: normalize_action(action), path: path, target: target}
+    new(normalize_action(action), path, target)
   end
 
   defp normalize_action("symlink"), do: :symlink

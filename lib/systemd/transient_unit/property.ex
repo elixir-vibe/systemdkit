@@ -13,6 +13,7 @@ defmodule Systemd.TransientUnit.Property do
           value: term()
         }
 
+  @enforce_keys [:name, :signature, :value]
   defstruct [:name, :signature, :value]
 
   @doc """
