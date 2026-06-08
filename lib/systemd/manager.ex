@@ -86,7 +86,8 @@ defmodule Systemd.Manager do
           {:ok, Job.t()} | {:error, Error.t()}
   def start_transient_unit(conn, unit_name, properties, opts \\ []) do
     mode = Keyword.get(opts, :mode, @default_mode)
-    aux_units = Keyword.get(opts, :aux_units, [])
+    properties = Enum.map(properties, &normalize_property/1)
+    aux_units = opts |> Keyword.get(:aux_units, []) |> Enum.map(&normalize_aux_unit/1)
 
     with {:ok, [object_path]} <-
            call(
@@ -106,6 +107,25 @@ defmodule Systemd.Manager do
   def reload(conn) when is_pid(conn) do
     with {:ok, []} <- call(conn, "Reload"), do: :ok
   end
+
+  defp normalize_property({name, {signature, value}}),
+    do: [name, {signature, normalize_structs(value)}]
+
+  defp normalize_property([name, {signature, value}]),
+    do: [name, {signature, normalize_structs(value)}]
+
+  defp normalize_aux_unit({name, properties}),
+    do: [name, Enum.map(properties, &normalize_property/1)]
+
+  defp normalize_aux_unit([name, properties]),
+    do: [name, Enum.map(properties, &normalize_property/1)]
+
+  defp normalize_structs(values) when is_list(values), do: Enum.map(values, &normalize_structs/1)
+
+  defp normalize_structs(values) when is_tuple(values),
+    do: values |> Tuple.to_list() |> normalize_structs()
+
+  defp normalize_structs(value), do: value
 
   defp unit_operation(conn, member, unit_name, opts) do
     mode = Keyword.get(opts, :mode, @default_mode)

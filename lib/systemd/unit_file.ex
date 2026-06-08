@@ -7,7 +7,7 @@ defmodule Systemd.UnitFile do
   as `ExecStart=` are meaningful in systemd syntax.
   """
 
-  alias Systemd.UnitFile.{Blank, Builder, Comment, Directive, Parser, Raw, Section}
+  alias Systemd.UnitFile.{Blank, Builder, Comment, Directive, Parser, Raw, Section, Validator}
 
   @type entry :: Blank.t() | Comment.t() | Directive.t() | Raw.t() | Section.t()
   @type t :: %__MODULE__{entries: [entry()]}
@@ -36,6 +36,13 @@ defmodule Systemd.UnitFile do
       {:error, reason} -> raise ArgumentError, "invalid unit file: #{inspect(reason)}"
     end
   end
+
+  @doc """
+  Validates a unit file.
+  """
+  @spec validate(t(), String.t() | atom() | nil) ::
+          :ok | {:error, [Systemd.UnitFile.ValidationError.t()]}
+  defdelegate validate(unit_file, type \\ nil), to: Validator
 
   @doc """
   Renders a unit file.
@@ -131,19 +138,32 @@ defmodule Systemd.UnitFile do
   end
 
   defp append_to_last_section(entries, section, directive) do
-    {entries, _in_section, inserted} =
-      Enum.reduce(entries, {[], false, false}, fn
-        %Section{name: ^section} = entry, {acc, _in_section, inserted} ->
-          {[entry | acc], true, inserted}
-
-        %Section{} = entry, {acc, true, false} ->
-          {[entry, directive | acc], false, true}
-
-        entry, {acc, in_section, inserted} ->
-          {[entry | acc], in_section, inserted}
-      end)
-
-    entries = if inserted, do: entries, else: [directive | entries]
-    Enum.reverse(entries)
+    {before_section, section_entries, after_section} = split_last_section(entries, section)
+    before_section ++ append_before_trailing_trivia(section_entries, directive) ++ after_section
   end
+
+  defp split_last_section(entries, section) do
+    index =
+      entries
+      |> Enum.with_index()
+      |> Enum.filter(fn
+        {%Section{name: ^section}, _index} -> true
+        _entry -> false
+      end)
+      |> List.last()
+      |> elem(1)
+
+    {before_section, [%Section{} = section_entry | rest]} = Enum.split(entries, index)
+    {body, after_section} = Enum.split_while(rest, &(not match?(%Section{}, &1)))
+    {before_section, [section_entry | body], after_section}
+  end
+
+  defp append_before_trailing_trivia([%Section{} = section | entries], directive) do
+    {trailing, body} = Enum.split_while(Enum.reverse(entries), &trivia?/1)
+    [section | Enum.reverse(body, [directive | Enum.reverse(trailing)])]
+  end
+
+  defp trivia?(%Blank{}), do: true
+  defp trivia?(%Comment{}), do: true
+  defp trivia?(_entry), do: false
 end

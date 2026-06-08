@@ -92,6 +92,26 @@ defmodule Systemd.UnitFileTest do
              "[Unit]\nDescription=My app\nAfter=network.target\nAfter=postgresql.service\n[Service]\nExecStart=/opt/app/bin/app start\nRestart=always\n[Install]\nWantedBy=multi-user.target\n"
   end
 
+  test "validates unit file sections" do
+    assert :ok =
+             UnitFile.parse!("[Service]\nExecStart=/bin/true\n") |> UnitFile.validate(:service)
+
+    assert {:error, [%Systemd.UnitFile.ValidationError{reason: :missing_section}]} =
+             UnitFile.parse!("[Unit]\nDescription=Only metadata\n") |> UnitFile.validate(:service)
+  end
+
+  test "appends before trailing section trivia" do
+    unit_file =
+      UnitFile.parse!(
+        "[Service]\nExecStart=/bin/true\n\n# keep with section\n[Install]\nWantedBy=multi-user.target\n"
+      )
+
+    unit_file = UnitFile.append(unit_file, "Service", "Restart", "always")
+
+    assert UnitFile.to_string(unit_file) ==
+             "[Service]\nExecStart=/bin/true\nRestart=always\n\n# keep with section\n[Install]\nWantedBy=multi-user.target\n"
+  end
+
   test "appends, puts, and deletes directives while preserving duplicates elsewhere" do
     unit_file = UnitFile.parse!("[Service]\nEnvironment=FOO=1\nEnvironment=BAR=2\n")
 

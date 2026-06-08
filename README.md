@@ -27,6 +27,19 @@ unit_file =
 
 The package depends on [`rebus`](https://hex.pm/packages/rebus) for the D-Bus wire protocol instead of shelling out to `systemctl`.
 
+## Permissions
+
+Systemd control happens over the system D-Bus. Read-only calls such as listing units usually work as an unprivileged user. Mutating calls such as daemon reload, starting system units, enabling units, or writing to `/etc/systemd/system` may require root or a polkit rule for the caller. The package returns structured `Systemd.Error` values for D-Bus policy failures instead of retrying through `sudo`.
+
+## Unit files
+
+`Systemd.UnitFile` preserves comments, blank lines, duplicate directives, reset directives, and source spans. Validation is intentionally separate from parsing:
+
+```elixir
+unit_file = Systemd.UnitFile.parse!("[Service]\nExecStart=/bin/true\n")
+:ok = Systemd.UnitFile.validate(unit_file, :service)
+```
+
 ## Development
 
 ```sh
