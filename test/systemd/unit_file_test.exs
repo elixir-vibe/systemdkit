@@ -1,0 +1,74 @@
+defmodule Systemd.UnitFileTest do
+  use ExUnit.Case, async: true
+
+  alias Systemd.UnitFile
+  alias Systemd.UnitFile.{Blank, Comment, Directive, Section}
+
+  test "parses sections, comments, blanks, directives, and duplicates" do
+    text = """
+    # example
+    [Unit]
+    Description=My app
+    After=network.target
+    After=postgresql.service
+
+    [Service]
+    ExecStart=/opt/app/bin/app start
+    ExecStart=
+    ExecStart=/opt/app/bin/app foreground
+    """
+
+    assert {:ok, %UnitFile{entries: entries} = unit_file} = UnitFile.parse(text)
+
+    assert [
+             %Comment{marker: "#", text: " example"},
+             %Section{name: "Unit"},
+             %Directive{name: "Description", value: "My app"},
+             %Directive{name: "After", value: "network.target"},
+             %Directive{name: "After", value: "postgresql.service"},
+             %Blank{},
+             %Section{name: "Service"},
+             %Directive{name: "ExecStart", value: "/opt/app/bin/app start"},
+             %Directive{name: "ExecStart", value: ""},
+             %Directive{name: "ExecStart", value: "/opt/app/bin/app foreground"}
+           ] = entries
+
+    assert UnitFile.get_all(unit_file, "Unit", "After") == [
+             "network.target",
+             "postgresql.service"
+           ]
+
+    assert UnitFile.get_all(unit_file, "Service", "ExecStart") == [
+             "/opt/app/bin/app start",
+             "",
+             "/opt/app/bin/app foreground"
+           ]
+  end
+
+  test "renders parsed unit files deterministically" do
+    text = "[Unit]\nDescription=My app\n\n[Install]\nWantedBy=multi-user.target\n"
+
+    assert {:ok, unit_file} = UnitFile.parse(text)
+    assert UnitFile.to_string(unit_file) == text
+  end
+
+  test "supports directive continuations" do
+    text = "[Service]\nExecStart=/bin/echo hello \\\n      world\n"
+
+    assert {:ok, unit_file} = UnitFile.parse(text)
+    assert UnitFile.get_all(unit_file, "Service", "ExecStart") == ["/bin/echo hello world"]
+  end
+
+  test "appends, puts, and deletes directives while preserving duplicates elsewhere" do
+    unit_file = UnitFile.parse!("[Service]\nEnvironment=FOO=1\nEnvironment=BAR=2\n")
+
+    unit_file = UnitFile.append(unit_file, "Service", "Restart", "on-failure")
+    assert UnitFile.get_all(unit_file, "Service", "Restart") == ["on-failure"]
+
+    unit_file = UnitFile.put(unit_file, "Service", "Environment", "BAZ=3")
+    assert UnitFile.get_all(unit_file, "Service", "Environment") == ["BAZ=3"]
+
+    unit_file = UnitFile.delete(unit_file, "Service", "Restart")
+    assert UnitFile.get_all(unit_file, "Service", "Restart") == []
+  end
+end

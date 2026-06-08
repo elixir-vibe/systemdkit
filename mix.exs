@@ -33,6 +33,7 @@ defmodule Systemd.MixProject do
       {:ex_dna, "~> 1.0", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:nimble_parsec, "~> 1.4"},
       {:rebus, "~> 0.2.0"},
       {:vibe_kit, "== 0.1.2"},
       {:igniter, "~> 0.6", only: [:dev, :test]}
