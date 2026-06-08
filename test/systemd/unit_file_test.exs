@@ -84,17 +84,18 @@ defmodule Systemd.UnitFileTest do
     unit_file =
       UnitFile.service(
         unit: [description: "My app", after: ["network.target", "postgresql.service"]],
-        service: [exec_start: "/opt/app/bin/app start", restart: :always],
+        service: [exec_start: "/opt/app/bin/app start", restart: :always, LimitNOFILE: 1_048_576],
         install: [wanted_by: "multi-user.target"]
       )
 
     assert UnitFile.to_string(unit_file) ==
-             "[Unit]\nDescription=My app\nAfter=network.target\nAfter=postgresql.service\n[Service]\nExecStart=/opt/app/bin/app start\nRestart=always\n[Install]\nWantedBy=multi-user.target\n"
+             "[Unit]\nDescription=My app\nAfter=network.target\nAfter=postgresql.service\n[Service]\nExecStart=/opt/app/bin/app start\nRestart=always\nLimitNOFILE=1048576\n[Install]\nWantedBy=multi-user.target\n"
   end
 
   test "validates unit file sections and directives" do
     assert :ok =
-             UnitFile.parse!("[Service]\nExecStart=/bin/true\n") |> UnitFile.validate(:service)
+             UnitFile.parse!("[Service]\nExecStart=/bin/true\nLimitNOFILE=1048576\n")
+             |> UnitFile.validate(:service)
 
     assert {:error, [%Systemd.UnitFile.ValidationError{reason: :missing_section}]} =
              UnitFile.parse!("[Unit]\nDescription=Only metadata\n") |> UnitFile.validate(:service)

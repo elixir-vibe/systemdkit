@@ -29,7 +29,7 @@ defmodule Systemd.UnitFile.Validator do
       ),
     "Service" =>
       MapSet.new(
-        ~w(Type ExecStart ExecStartPre ExecStartPost ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory Environment EnvironmentFile TimeoutStartSec TimeoutStopSec KillSignal KillMode RemainAfterExit PIDFile RuntimeDirectory StateDirectory CacheDirectory LogsDirectory StandardOutput StandardError)
+        ~w(Type ExecStart ExecStartPre ExecStartPost ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory Environment EnvironmentFile TimeoutStartSec TimeoutStopSec KillSignal KillMode RemainAfterExit PIDFile RuntimeDirectory StateDirectory CacheDirectory LogsDirectory StandardOutput StandardError LimitNOFILE)
       ),
     "Install" => MapSet.new(~w(WantedBy RequiredBy Also Alias DefaultInstance)),
     "Socket" =>
