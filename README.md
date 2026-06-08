@@ -47,8 +47,17 @@ mix deps.get
 mix ci
 ```
 
-Integration tests are excluded by default because they require Linux with systemd and a system bus:
+Integration tests are excluded by default because they require Linux with systemd and a system bus. For local development, run them inside the Lima Debian VM named `systemd-test`:
 
 ```sh
+~/.local/bin/limactl shell systemd-test
+cd /Users/dannote/Development/systemd
 SYSTEMD_INTEGRATION=1 mix test
+```
+
+Quick VM checks:
+
+```sh
+~/.local/bin/limactl shell systemd-test -- systemctl is-system-running
+~/.local/bin/limactl shell systemd-test -- busctl --system list --no-pager
 ```
