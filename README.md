@@ -79,4 +79,4 @@ Quick VM checks:
 ~/.local/bin/limactl shell systemd-test -- busctl --system list --no-pager
 ```
 
-See `docs/RELEASE_CHECKLIST.md` before publishing a release.
+See `CONTRIBUTING.md` before publishing a release.

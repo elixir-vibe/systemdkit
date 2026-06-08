@@ -27,3 +27,9 @@ Integration tests are excluded by default. Enable them only inside a Linux syste
 ```sh
 SYSTEMD_INTEGRATION=1 mix test
 ```
+
+From macOS, prefer the checked-in wrapper for a full VM integration run:
+
+```sh
+scripts/integration_test.sh
+```

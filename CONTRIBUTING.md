@@ -1,6 +1,6 @@
-# Release Checklist
+# Contributing
 
-Before publishing a pre-release or Hex package:
+Before opening release-oriented changes or publishing a pre-release/Hex package:
 
 - Run `mix ci` locally.
 - Run `mix docs` and inspect generated module examples.

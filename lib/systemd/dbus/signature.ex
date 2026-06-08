@@ -18,6 +18,8 @@ defmodule Systemd.DBus.Signature do
   defp primitive?(""), do: true
 
   defp primitive?(signature) do
-    String.match?(signature, ~r/^[syobintqxuagdvh]+$/)
+    signature
+    |> String.to_charlist()
+    |> Enum.all?(&(&1 in ~c"syobintqxuagdvh"))
   end
 end

@@ -155,10 +155,13 @@ defmodule Systemd.UnitFile.Parser do
   end
 
   defp first_non_whitespace_column(line) do
-    case Regex.run(~r/\S/, line, return: :index) do
-      [{index, _length}] -> index + 1
-      _no_match -> 1
-    end
+    line
+    |> :binary.bin_to_list()
+    |> Enum.with_index(1)
+    |> Enum.find_value(1, fn
+      {char, column} when char not in [?\s, ?\t] -> column
+      _whitespace -> false
+    end)
   end
 
   defp ensure_final_newline(text) do

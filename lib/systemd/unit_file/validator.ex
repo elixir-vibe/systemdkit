@@ -2,7 +2,7 @@ defmodule Systemd.UnitFile.Validator do
   @moduledoc false
 
   alias Systemd.UnitFile
-  alias Systemd.UnitFile.{Directive, Section, ValidationError, Value}
+  alias Systemd.UnitFile.{Directive, Section, ValidationError, Value, ValueParser}
 
   @known_sections %{
     "service" => MapSet.new(["Unit", "Service", "Install"]),
@@ -273,10 +273,8 @@ defmodule Systemd.UnitFile.Validator do
     one_of(section, directive, String.downcase(value), ~w(1 yes true on 0 no false off), span)
   end
 
-  defp duration(_section, _directive, "infinity", _span), do: []
-
   defp duration(section, directive, value, span) do
-    if String.match?(value, ~r/^\d+(\.\d+)?\s*(us|µs|ms|s|sec|m|min|h|hr|d|day|w|week)?$/) do
+    if ValueParser.duration?(value) do
       []
     else
       [
@@ -292,7 +290,7 @@ defmodule Systemd.UnitFile.Validator do
   end
 
   defp octal_mode(section, directive, value, span) do
-    if String.match?(value, ~r/^[0-7]{3,4}$/) do
+    if ValueParser.octal_mode?(value) do
       []
     else
       [value_error(section, directive, value, "expected an octal mode such as 0660", span)]
