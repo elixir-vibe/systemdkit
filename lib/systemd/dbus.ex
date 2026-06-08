@@ -43,9 +43,7 @@ defmodule Systemd.DBus do
   @spec call(pid(), [call_option()]) :: {:ok, Result.t()} | {:error, Error.t()}
   def call(conn, opts) when is_pid(conn) and is_list(opts) do
     with {:ok, message} <- message(opts) do
-      conn
-      |> Connection.send(message)
-      |> to_result()
+      send_message(conn, message)
     end
   end
 
@@ -68,6 +66,14 @@ defmodule Systemd.DBus do
     )
   rescue
     error in KeyError -> {:error, Error.validation_error(error)}
+  end
+
+  defp send_message(conn, message) do
+    conn
+    |> Connection.send(message)
+    |> to_result()
+  catch
+    :exit, reason -> {:error, Error.connection_error(reason)}
   end
 
   defp to_result(%Message{type: :method_return, body: body} = message) do

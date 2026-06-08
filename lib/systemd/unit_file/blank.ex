@@ -3,7 +3,9 @@ defmodule Systemd.UnitFile.Blank do
   Blank line in a systemd unit file.
   """
 
-  @type t :: %__MODULE__{}
+  alias Systemd.UnitFile.Span
 
-  defstruct []
+  @type t :: %__MODULE__{span: Span.t() | nil}
+
+  defstruct [:span]
 end

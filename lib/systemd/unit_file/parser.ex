@@ -4,7 +4,7 @@ defmodule Systemd.UnitFile.Parser do
   import NimbleParsec
 
   alias Systemd.UnitFile
-  alias Systemd.UnitFile.{Blank, Comment, Directive, Raw, Section}
+  alias Systemd.UnitFile.{Blank, Comment, Directive, ParseError, Raw, Section, Span}
 
   whitespace = repeat(choice([string(" "), string("\t")]))
   eol = choice([string("\r\n"), string("\n")])
@@ -44,29 +44,37 @@ defmodule Systemd.UnitFile.Parser do
     |> post_traverse(:directive_line)
 
   raw =
-    rest_of_line
+    utf8_string([?\s, ?\t], min: 1)
+    |> concat(rest_of_line)
     |> ignore(eol)
-    |> unwrap_and_tag(:raw)
+    |> post_traverse(:raw_line)
 
   line = choice([blank, comment, section, directive, raw])
 
   defparsecp(:document, repeat(line) |> eos())
 
-  @spec parse(String.t()) :: {:ok, UnitFile.t()} | {:error, term()}
+  @spec parse(String.t()) :: {:ok, UnitFile.t()} | {:error, ParseError.t()}
   def parse("") do
     {:ok, %UnitFile{entries: []}}
   end
 
   def parse(text) when is_binary(text) do
-    case document(ensure_final_newline(text)) do
+    input = ensure_final_newline(text)
+
+    case document(input) do
       {:ok, tokens, "", _context, _line, _offset} ->
-        {:ok, %UnitFile{entries: tokens |> to_entries() |> fold_continuations()}}
+        entries =
+          tokens
+          |> to_entries(source_lines(input))
+          |> fold_continuations()
+
+        {:ok, %UnitFile{entries: entries}}
 
       {:ok, _tokens, rest, _context, line, offset} ->
-        {:error, {:unparsed, rest, line, offset}}
+        {:error, parse_error(:unparsed_input, rest, line, offset)}
 
       {:error, reason, rest, _context, line, offset} ->
-        {:error, {reason, rest, line, offset}}
+        {:error, parse_error(reason, rest, line, offset)}
     end
   end
 
@@ -78,13 +86,24 @@ defmodule Systemd.UnitFile.Parser do
     {rest, [{:directive, name, trim_cr(value)}], context}
   end
 
-  defp to_entries(tokens) do
-    Enum.map(tokens, fn
-      {:blank} -> %Blank{}
-      {:comment, marker, text} -> %Comment{marker: marker, text: text}
-      {:section, name} -> %Section{name: name}
-      {:directive, name, value} -> %Directive{name: name, value: value}
-      {:raw, content} -> %Raw{content: trim_cr(content)}
+  defp raw_line(rest, [content, whitespace], context, _line, _offset) do
+    {rest, [{:raw, whitespace <> trim_cr(content)}], context}
+  end
+
+  defp to_entries(tokens, lines) do
+    tokens
+    |> Enum.zip(lines)
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{token, line}, line_number} ->
+      span = %Span{line: line_number, column: column_for(token, line)}
+
+      case token do
+        {:blank} -> %Blank{span: span}
+        {:comment, marker, text} -> %Comment{marker: marker, text: text, span: span}
+        {:section, name} -> %Section{name: name, span: span}
+        {:directive, name, value} -> %Directive{name: name, value: value, span: span}
+        {:raw, content} -> %Raw{content: trim_cr(content), span: span}
+      end
     end)
   end
 
@@ -110,6 +129,36 @@ defmodule Systemd.UnitFile.Parser do
     value
     |> String.trim_trailing("\\")
     |> Kernel.<>(String.trim_leading(content))
+  end
+
+  defp parse_error(reason, rest, {line, column}, _offset) do
+    %ParseError{reason: reason, rest: rest, line: line, column: column}
+  end
+
+  defp source_lines(input) do
+    input
+    |> String.split("\n")
+    |> Enum.drop(-1)
+  end
+
+  defp column_for({:blank}, line), do: first_non_whitespace_column(line)
+  defp column_for({:comment, marker, _text}, line), do: find_column(line, marker)
+  defp column_for({:section, _name}, line), do: find_column(line, "[")
+  defp column_for({:directive, name, _value}, line), do: find_column(line, name)
+  defp column_for({:raw, _content}, line), do: first_non_whitespace_column(line)
+
+  defp find_column(line, needle) do
+    case :binary.match(line, needle) do
+      {index, _length} -> index + 1
+      :nomatch -> 1
+    end
+  end
+
+  defp first_non_whitespace_column(line) do
+    case Regex.run(~r/\S/, line, return: :index) do
+      [{index, _length}] -> index + 1
+      _no_match -> 1
+    end
   end
 
   defp ensure_final_newline(text) do

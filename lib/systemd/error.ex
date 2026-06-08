@@ -72,6 +72,8 @@ defmodule Systemd.Error do
   defp reason_from_dbus_name("org.freedesktop.DBus.Error.NoReply"), do: :no_reply
   defp reason_from_dbus_name("org.freedesktop.DBus.Error.ServiceUnknown"), do: :service_unknown
   defp reason_from_dbus_name("org.freedesktop.DBus.Error.UnknownMethod"), do: :unknown_method
+  defp reason_from_dbus_name("org.freedesktop.DBus.Error.UnknownObject"), do: :unknown_object
+  defp reason_from_dbus_name("org.freedesktop.systemd1.NoSuchJob"), do: :no_such_job
   defp reason_from_dbus_name("org.freedesktop.systemd1.NoSuchUnit"), do: :no_such_unit
   defp reason_from_dbus_name("org.freedesktop.systemd1.UnitExists"), do: :unit_exists
   defp reason_from_dbus_name(_name), do: :dbus_error

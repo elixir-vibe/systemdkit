@@ -2,7 +2,7 @@ defmodule Systemd.UnitFileTest do
   use ExUnit.Case, async: true
 
   alias Systemd.UnitFile
-  alias Systemd.UnitFile.{Blank, Comment, Directive, Section}
+  alias Systemd.UnitFile.{Blank, Comment, Directive, ParseError, Section, Span, Value}
 
   test "parses sections, comments, blanks, directives, and duplicates" do
     text = """
@@ -57,6 +57,39 @@ defmodule Systemd.UnitFileTest do
 
     assert {:ok, unit_file} = UnitFile.parse(text)
     assert UnitFile.get_all(unit_file, "Service", "ExecStart") == ["/bin/echo hello world"]
+  end
+
+  test "records source spans" do
+    assert {:ok,
+            %UnitFile{
+              entries: [
+                %Comment{span: %Span{line: 1, column: 3}},
+                %Section{span: %Span{line: 2, column: 1}}
+              ]
+            }} =
+             UnitFile.parse("  ; hello\n[Unit]\n")
+  end
+
+  test "returns structured parse errors" do
+    assert {:error, %ParseError{line: 1, reason: reason}} = UnitFile.parse("[Unit] trailing\n")
+    assert is_binary(reason)
+  end
+
+  test "parses quoted value words" do
+    assert Value.words(~s[/bin/echo "hello world" 'again' escaped\\ space]) ==
+             {:ok, ["/bin/echo", "hello world", "again", "escaped space"]}
+  end
+
+  test "builds common service unit sections" do
+    unit_file =
+      UnitFile.service(
+        unit: [description: "My app", after: ["network.target", "postgresql.service"]],
+        service: [exec_start: "/opt/app/bin/app start", restart: :always],
+        install: [wanted_by: "multi-user.target"]
+      )
+
+    assert UnitFile.to_string(unit_file) ==
+             "[Unit]\nDescription=My app\nAfter=network.target\nAfter=postgresql.service\n[Service]\nExecStart=/opt/app/bin/app start\nRestart=always\n[Install]\nWantedBy=multi-user.target\n"
   end
 
   test "appends, puts, and deletes directives while preserving duplicates elsewhere" do

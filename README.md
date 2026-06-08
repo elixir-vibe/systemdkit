@@ -7,6 +7,8 @@ The current spike exposes a small D-Bus backed manager client:
 ```elixir
 {:ok, conn} = Systemd.Manager.connect()
 {:ok, units} = Systemd.Manager.list_units(conn)
+{:ok, unit} = Systemd.Manager.get_unit(conn, "dbus.service")
+{:ok, state} = Systemd.UnitObject.state(conn, unit)
 ```
 
 It also includes a NimbleParsec-backed unit file parser/generator:
@@ -14,6 +16,13 @@ It also includes a NimbleParsec-backed unit file parser/generator:
 ```elixir
 {:ok, unit_file} = Systemd.UnitFile.parse("[Service]\nExecStart=/bin/app start\n")
 Systemd.UnitFile.to_string(unit_file)
+
+unit_file =
+  Systemd.UnitFile.service(
+    unit: [description: "My app"],
+    service: [exec_start: "/bin/app start", restart: :always],
+    install: [wanted_by: "multi-user.target"]
+  )
 ```
 
 The package depends on [`rebus`](https://hex.pm/packages/rebus) for the D-Bus wire protocol instead of shelling out to `systemctl`.

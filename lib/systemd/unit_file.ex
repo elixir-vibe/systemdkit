@@ -7,12 +7,18 @@ defmodule Systemd.UnitFile do
   as `ExecStart=` are meaningful in systemd syntax.
   """
 
-  alias Systemd.UnitFile.{Blank, Comment, Directive, Parser, Raw, Section}
+  alias Systemd.UnitFile.{Blank, Builder, Comment, Directive, Parser, Raw, Section}
 
   @type entry :: Blank.t() | Comment.t() | Directive.t() | Raw.t() | Section.t()
   @type t :: %__MODULE__{entries: [entry()]}
 
   defstruct entries: []
+
+  @doc """
+  Builds a service unit file from common `Unit`, `Service`, and `Install` sections.
+  """
+  @spec service(keyword()) :: t()
+  defdelegate service(opts), to: Builder
 
   @doc """
   Parses unit file text.
@@ -125,16 +131,19 @@ defmodule Systemd.UnitFile do
   end
 
   defp append_to_last_section(entries, section, directive) do
-    entries
-    |> Enum.reverse()
-    |> insert_after_section(section, directive, [])
-  end
+    {entries, _in_section, inserted} =
+      Enum.reduce(entries, {[], false, false}, fn
+        %Section{name: ^section} = entry, {acc, _in_section, inserted} ->
+          {[entry | acc], true, inserted}
 
-  defp insert_after_section([%Section{name: section} = entry | rest], section, directive, acc) do
-    Enum.reverse(rest, [entry, directive | acc])
-  end
+        %Section{} = entry, {acc, true, false} ->
+          {[entry, directive | acc], false, true}
 
-  defp insert_after_section([entry | rest], section, directive, acc) do
-    insert_after_section(rest, section, directive, [entry | acc])
+        entry, {acc, in_section, inserted} ->
+          {[entry | acc], in_section, inserted}
+      end)
+
+    entries = if inserted, do: entries, else: [directive | entries]
+    Enum.reverse(entries)
   end
 end

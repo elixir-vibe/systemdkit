@@ -6,7 +6,9 @@ defmodule Systemd.UnitFile.Raw do
   Raw lines are primarily used for directive continuations.
   """
 
-  @type t :: %__MODULE__{content: String.t()}
+  alias Systemd.UnitFile.Span
 
-  defstruct content: ""
+  @type t :: %__MODULE__{content: String.t(), span: Span.t() | nil}
+
+  defstruct content: "", span: nil
 end

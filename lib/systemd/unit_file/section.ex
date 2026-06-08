@@ -3,7 +3,9 @@ defmodule Systemd.UnitFile.Section do
   Section header in a systemd unit file, for example `[Service]`.
   """
 
-  @type t :: %__MODULE__{name: String.t()}
+  alias Systemd.UnitFile.Span
 
-  defstruct [:name]
+  @type t :: %__MODULE__{name: String.t(), span: Span.t() | nil}
+
+  defstruct [:name, :span]
 end
