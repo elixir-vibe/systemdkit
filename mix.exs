@@ -51,6 +51,7 @@ defmodule Systemd.MixProject do
 
   defp package do
     [
+      name: "systemdkit",
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url}
     ]

@@ -2,7 +2,13 @@
 
 Pure Elixir tools for working with systemd.
 
-The current spike exposes a small D-Bus backed manager client:
+Hex package name: `systemdkit`. The Mix application and public modules remain `:systemd` / `Systemd`.
+
+```elixir
+{:systemdkit, "~> 0.1.0-pre"}
+```
+
+The package exposes a small D-Bus backed manager client:
 
 ```elixir
 {:ok, conn} = Systemd.Manager.connect()

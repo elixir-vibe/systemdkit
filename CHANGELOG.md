@@ -2,7 +2,7 @@
 
 ## v0.1.0-pre.0
 
-Initial private pre-release.
+Initial private pre-release under the Hex package name `systemdkit`.
 
 - Added D-Bus-backed systemd manager APIs.
 - Added loss-aware systemd unit-file parser/generator.
