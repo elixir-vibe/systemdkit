@@ -1,8 +1,12 @@
 # Changelog
 
+## v0.1.0-pre.1
+
+- Removed VibeKit/Igniter scaffold dependencies from runtime package dependencies.
+
 ## v0.1.0-pre.0
 
-Initial private pre-release under the Hex package name `systemdkit`.
+Initial pre-release under the Hex package name `systemdkit`.
 
 - Added D-Bus-backed systemd manager APIs.
 - Added loss-aware systemd unit-file parser/generator.
