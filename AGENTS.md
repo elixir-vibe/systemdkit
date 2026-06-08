@@ -22,7 +22,7 @@ A Lima Debian VM named `systemd-test` is available for real systemd/D-Bus checks
 ~/.local/bin/limactl shell systemd-test -- busctl --system list --no-pager
 ```
 
-Integration tests are excluded by default. Enable them only inside a Linux systemd environment:
+Integration tests are excluded by default. Enable them only inside a Linux systemd environment. The `systemd-test` VM has Debian packages installed for this (`elixir`, `erlang-dev`, `git`, `build-essential`).
 
 ```sh
 SYSTEMD_INTEGRATION=1 mix test
