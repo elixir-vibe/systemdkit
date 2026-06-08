@@ -1,7 +1,7 @@
 defmodule Systemd.ManagerIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias Systemd.{Job, Manager, Unit, UnitObject}
+  alias Systemd.{Job, Manager, TransientUnit, Unit, UnitObject}
 
   @moduletag :integration
 
@@ -42,9 +42,9 @@ defmodule Systemd.ManagerIntegrationTest do
     name = "systemd-elixir-test-#{System.unique_integer([:positive])}.service"
 
     properties = [
-      ["Description", {"s", "systemd Elixir integration test"}],
-      ["Type", {"s", "oneshot"}],
-      ["ExecStart", {"a(sasb)", [["/bin/true", ["/bin/true"], false]]}]
+      TransientUnit.string("Description", "systemd Elixir integration test"),
+      TransientUnit.string("Type", "oneshot"),
+      TransientUnit.exec_start("/bin/true", ["/bin/true"])
     ]
 
     case Manager.start_transient_unit(conn, name, properties) do
