@@ -38,7 +38,7 @@ defmodule Systemd.Manager do
   end
 
   defp call(conn, member, body \\ [], signature \\ "") do
-    DBus.call(conn,
+    DBus.call_body(conn,
       destination: @destination,
       path: @path,
       interface: @interface,

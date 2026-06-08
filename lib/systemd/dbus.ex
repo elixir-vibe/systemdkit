@@ -3,12 +3,13 @@ defmodule Systemd.DBus do
   Small D-Bus client wrapper used by the systemd API.
 
   This module intentionally keeps the surface tiny: connect to a bus and perform
-  method calls, returning decoded D-Bus bodies or structured D-Bus errors.
+  method calls, returning structured results or structured errors.
   """
 
   alias Rebus.Connection
   alias Rebus.Message
-  alias Systemd.DBus.Error
+  alias Systemd.DBus.Result
+  alias Systemd.Error
 
   @type bus ::
           :system | :session | %{required(:family) => :local | :inet, optional(atom()) => term()}
@@ -25,38 +26,35 @@ defmodule Systemd.DBus do
 
   Defaults to the system bus because systemd exposes its manager API there.
   """
-  @spec connect(bus(), keyword()) :: {:ok, pid()} | {:error, term()}
+  @spec connect(bus(), keyword()) :: {:ok, pid()} | {:error, Error.t()}
   def connect(bus \\ :system, opts \\ []) do
-    with {:ok, _apps} <- Application.ensure_all_started(:rebus) do
-      Rebus.connect(bus, opts)
+    with {:ok, _apps} <- Application.ensure_all_started(:rebus),
+         {:ok, conn} <- Rebus.connect(bus, opts) do
+      {:ok, conn}
+    else
+      {:error, %Error{} = error} -> {:error, error}
+      {:error, reason} -> {:error, Error.connection_error(reason)}
     end
   end
 
   @doc """
-  Sends a method call and returns the decoded D-Bus body.
+  Sends a method call and returns a structured D-Bus result.
   """
-  @spec call(pid(), [call_option()]) :: {:ok, [term()]} | {:error, Error.t() | term()}
+  @spec call(pid(), [call_option()]) :: {:ok, Result.t()} | {:error, Error.t()}
   def call(conn, opts) when is_pid(conn) and is_list(opts) do
     with {:ok, message} <- message(opts) do
-      case Connection.send(conn, message) do
-        %Message{type: :method_return, body: body} ->
-          {:ok, body}
-
-        %Message{type: :error, header_fields: header_fields, body: body} ->
-          {:error,
-           %Error{
-             name: Map.get(header_fields, :error_name),
-             message: error_message(body),
-             body: body
-           }}
-
-        {:error, reason} ->
-          {:error, reason}
-
-        other ->
-          {:error, {:unexpected_reply, other}}
-      end
+      conn
+      |> Connection.send(message)
+      |> to_result()
     end
+  end
+
+  @doc """
+  Sends a method call and returns only the decoded D-Bus body.
+  """
+  @spec call_body(pid(), [call_option()]) :: {:ok, [term()]} | {:error, Error.t()}
+  def call_body(conn, opts) do
+    with {:ok, %Result{body: body}} <- call(conn, opts), do: {:ok, body}
   end
 
   defp message(opts) do
@@ -68,8 +66,18 @@ defmodule Systemd.DBus do
       signature: Keyword.get(opts, :signature, ""),
       body: Keyword.get(opts, :body, [])
     )
+  rescue
+    error in KeyError -> {:error, Error.validation_error(error)}
   end
 
-  defp error_message([message | _]) when is_binary(message), do: message
-  defp error_message(_body), do: nil
+  defp to_result(%Message{type: :method_return, body: body} = message) do
+    {:ok, %Result{message: message, body: body}}
+  end
+
+  defp to_result(%Message{type: :error, header_fields: header_fields, body: body}) do
+    {:error, Error.dbus_error(Map.get(header_fields, :error_name), body)}
+  end
+
+  defp to_result({:error, reason}), do: {:error, Error.connection_error(reason)}
+  defp to_result(other), do: {:error, Error.protocol_error(other)}
 end
