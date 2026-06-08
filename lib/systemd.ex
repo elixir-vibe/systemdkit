@@ -89,7 +89,8 @@ defmodule Systemd do
   @doc """
   Enables unit files using a short-lived connection.
   """
-  @spec enable_unit_files([String.t()], keyword()) :: {:ok, map()} | {:error, Error.t()}
+  @spec enable_unit_files([String.t()], keyword()) ::
+          {:ok, Systemd.UnitFileOperation.t()} | {:error, Error.t()}
   def enable_unit_files(files, opts \\ []) do
     with_connection(opts, &Manager.enable_unit_files(&1, files, opts))
   end
@@ -98,7 +99,7 @@ defmodule Systemd do
   Disables unit files using a short-lived connection.
   """
   @spec disable_unit_files([String.t()], keyword()) ::
-          {:ok, [Systemd.UnitFileChange.t()]} | {:error, Error.t()}
+          {:ok, Systemd.UnitFileOperation.t()} | {:error, Error.t()}
   def disable_unit_files(files, opts \\ []) do
     with_connection(opts, &Manager.disable_unit_files(&1, files, opts))
   end
@@ -107,7 +108,7 @@ defmodule Systemd do
   Masks unit files using a short-lived connection.
   """
   @spec mask_unit_files([String.t()], keyword()) ::
-          {:ok, [Systemd.UnitFileChange.t()]} | {:error, Error.t()}
+          {:ok, Systemd.UnitFileOperation.t()} | {:error, Error.t()}
   def mask_unit_files(files, opts \\ []) do
     with_connection(opts, &Manager.mask_unit_files(&1, files, opts))
   end
@@ -116,7 +117,7 @@ defmodule Systemd do
   Unmasks unit files using a short-lived connection.
   """
   @spec unmask_unit_files([String.t()], keyword()) ::
-          {:ok, [Systemd.UnitFileChange.t()]} | {:error, Error.t()}
+          {:ok, Systemd.UnitFileOperation.t()} | {:error, Error.t()}
   def unmask_unit_files(files, opts \\ []) do
     with_connection(opts, &Manager.unmask_unit_files(&1, files, opts))
   end
@@ -125,7 +126,7 @@ defmodule Systemd do
   Links unit files using a short-lived connection.
   """
   @spec link_unit_files([String.t()], keyword()) ::
-          {:ok, [Systemd.UnitFileChange.t()]} | {:error, Error.t()}
+          {:ok, Systemd.UnitFileOperation.t()} | {:error, Error.t()}
   def link_unit_files(files, opts \\ []) do
     with_connection(opts, &Manager.link_unit_files(&1, files, opts))
   end
