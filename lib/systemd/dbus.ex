@@ -8,7 +8,7 @@ defmodule Systemd.DBus do
 
   alias Rebus.Connection
   alias Rebus.Message
-  alias Systemd.DBus.Result
+  alias Systemd.DBus.{Result, Signature}
   alias Systemd.Error
 
   @type bus ::
@@ -42,7 +42,8 @@ defmodule Systemd.DBus do
   """
   @spec call(pid(), [call_option()]) :: {:ok, Result.t()} | {:error, Error.t()}
   def call(conn, opts) when is_pid(conn) and is_list(opts) do
-    with {:ok, message} <- message(opts) do
+    with :ok <- validate_signature(opts),
+         {:ok, message} <- message(opts) do
       send_message(conn, message)
     end
   end
@@ -53,6 +54,16 @@ defmodule Systemd.DBus do
   @spec call_body(pid(), [call_option()]) :: {:ok, [term()]} | {:error, Error.t()}
   def call_body(conn, opts) do
     with {:ok, %Result{body: body}} <- call(conn, opts), do: {:ok, body}
+  end
+
+  defp validate_signature(opts) do
+    signature = Keyword.get(opts, :signature, "")
+
+    if Signature.supported?(signature) do
+      :ok
+    else
+      {:error, Error.encoding_error({:unsupported_signature, signature})}
+    end
   end
 
   defp message(opts) do

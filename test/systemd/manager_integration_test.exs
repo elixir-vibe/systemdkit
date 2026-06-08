@@ -1,7 +1,7 @@
 defmodule Systemd.ManagerIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias Systemd.{Job, Manager, TransientUnit, Unit, UnitObject}
+  alias Systemd.{Error, Job, Manager, TransientUnit, Unit, UnitFileOperation, UnitObject}
 
   @moduletag :integration
 
@@ -36,6 +36,37 @@ defmodule Systemd.ManagerIntegrationTest do
     end
   end
 
+  test "unit-file mutating operations return typed changes or policy denial" do
+    assert {:ok, conn} = Manager.connect()
+
+    name = "systemd-elixir-file-test-#{System.unique_integer([:positive])}.service"
+    path = Path.join(System.tmp_dir!(), name)
+
+    File.write!(path, "[Service]\nType=oneshot\nExecStart=/bin/true\n")
+
+    try do
+      case Manager.link_unit_files(conn, [path], runtime: true, force: true) do
+        {:ok, %UnitFileOperation{}} ->
+          assert_operation_or_permission(
+            Manager.enable_unit_files(conn, [name], runtime: true, force: true)
+          )
+
+          assert_operation_or_permission(Manager.disable_unit_files(conn, [name], runtime: true))
+
+          assert_operation_or_permission(
+            Manager.mask_unit_files(conn, [name], runtime: true, force: true)
+          )
+
+          assert_operation_or_permission(Manager.unmask_unit_files(conn, [name], runtime: true))
+
+        {:error, %Error{} = error} ->
+          assert Error.permission?(error)
+      end
+    after
+      File.rm(path)
+    end
+  end
+
   test "starts and awaits a harmless transient unit" do
     assert {:ok, conn} = Manager.connect()
 
@@ -56,4 +87,10 @@ defmodule Systemd.ManagerIntegrationTest do
         :ok
     end
   end
+
+  defp assert_operation_or_permission({:ok, %UnitFileOperation{changes: changes}})
+       when is_list(changes), do: :ok
+
+  defp assert_operation_or_permission({:error, %Error{} = error}),
+    do: assert(Error.permission?(error))
 end

@@ -3,7 +3,7 @@ defmodule Systemd.UnitObject do
   D-Bus object for a loaded systemd unit.
   """
 
-  alias Systemd.{Error, Properties, UnitState}
+  alias Systemd.{Error, Properties, ServiceState, SocketState, TimerState, UnitState}
 
   @interface "org.freedesktop.systemd1.Unit"
 
@@ -31,8 +31,36 @@ defmodule Systemd.UnitObject do
   """
   @spec state(pid(), t()) :: {:ok, UnitState.t()} | {:error, Error.t()}
   def state(conn, %__MODULE__{} = unit) do
-    with {:ok, properties} <- Properties.get_all(conn, unit.object_path, @interface) do
-      {:ok, UnitState.from_properties(properties)}
+    typed_state(conn, unit, @interface, UnitState)
+  end
+
+  @doc """
+  Reads common service-specific properties.
+  """
+  @spec service_state(pid(), t()) :: {:ok, ServiceState.t()} | {:error, Error.t()}
+  def service_state(conn, %__MODULE__{} = unit) do
+    typed_state(conn, unit, "org.freedesktop.systemd1.Service", ServiceState)
+  end
+
+  @doc """
+  Reads common socket-specific properties.
+  """
+  @spec socket_state(pid(), t()) :: {:ok, SocketState.t()} | {:error, Error.t()}
+  def socket_state(conn, %__MODULE__{} = unit) do
+    typed_state(conn, unit, "org.freedesktop.systemd1.Socket", SocketState)
+  end
+
+  @doc """
+  Reads common timer-specific properties.
+  """
+  @spec timer_state(pid(), t()) :: {:ok, TimerState.t()} | {:error, Error.t()}
+  def timer_state(conn, %__MODULE__{} = unit) do
+    typed_state(conn, unit, "org.freedesktop.systemd1.Timer", TimerState)
+  end
+
+  defp typed_state(conn, unit, interface, module) do
+    with {:ok, properties} <- Properties.get_all(conn, unit.object_path, interface) do
+      {:ok, module.from_properties(properties)}
     end
   end
 end

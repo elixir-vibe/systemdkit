@@ -4,6 +4,24 @@ defmodule Systemd do
 
   The package provides a D-Bus backed manager client, unit object/property APIs,
   job awaiting, installation helpers, and a loss-aware unit file parser/generator.
+
+  ## Examples
+
+      {:ok, units} = Systemd.list_units()
+      :ok = Systemd.start_unit("example.service")
+      {:ok, state} = Systemd.unit_state("dbus.service")
+
+      unit_file =
+        Systemd.UnitFile.service(
+          unit: [description: "Example"],
+          service: [exec_start: "/bin/true", type: :oneshot],
+          install: [wanted_by: "multi-user.target"]
+        )
+
+      :ok = Systemd.UnitFile.validate(unit_file, :service)
+
+  Mutating calls can return `{:error, %Systemd.Error{category: :permission}}`
+  when systemd or polkit denies the D-Bus operation.
   """
 
   alias Systemd.{Error, Manager}
@@ -46,7 +64,7 @@ defmodule Systemd do
   @doc """
   Reads common state for a unit using a short-lived connection.
   """
-  @spec unit_state(String.t(), keyword()) :: {:ok, map()} | {:error, Error.t()}
+  @spec unit_state(String.t(), keyword()) :: {:ok, Systemd.UnitState.t()} | {:error, Error.t()}
   def unit_state(name, opts \\ []) do
     with_connection(opts, fn conn ->
       with {:ok, unit} <- Manager.get_unit(conn, name) do

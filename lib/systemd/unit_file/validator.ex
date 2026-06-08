@@ -2,7 +2,7 @@ defmodule Systemd.UnitFile.Validator do
   @moduledoc false
 
   alias Systemd.UnitFile
-  alias Systemd.UnitFile.{Directive, Section, ValidationError}
+  alias Systemd.UnitFile.{Directive, Section, ValidationError, Value}
 
   @known_sections %{
     "service" => MapSet.new(["Unit", "Service", "Install"]),
@@ -61,6 +61,7 @@ defmodule Systemd.UnitFile.Validator do
       |> collect_missing_section_errors(unit_file, normalize_type(type))
       |> collect_directive_scope_errors(unit_file)
       |> collect_unknown_directive_errors(unit_file)
+      |> collect_directive_value_errors(unit_file)
 
     case Enum.reverse(errors) do
       [] -> :ok
@@ -165,6 +166,162 @@ defmodule Systemd.UnitFile.Validator do
       end)
 
     errors
+  end
+
+  defp collect_directive_value_errors(errors, unit_file) do
+    {_section, errors} =
+      Enum.reduce(unit_file.entries, {nil, errors}, fn
+        %Section{name: section}, {_current_section, errors} ->
+          {section, errors}
+
+        %Directive{name: directive, value: value, span: span}, {section, errors} ->
+          errors =
+            section
+            |> value_errors(directive, value, span)
+            |> Enum.concat(errors)
+
+          {section, errors}
+
+        _entry, acc ->
+          acc
+      end)
+
+    errors
+  end
+
+  defp value_errors("Service", "Type", value, span) do
+    one_of(
+      "Service",
+      "Type",
+      value,
+      ~w(simple exec forking oneshot dbus notify notify-reload idle),
+      span
+    )
+  end
+
+  defp value_errors("Service", "Restart", value, span) do
+    one_of(
+      "Service",
+      "Restart",
+      value,
+      ~w(no on-success on-failure on-abnormal on-watchdog on-abort always),
+      span
+    )
+  end
+
+  defp value_errors("Service", directive, value, span)
+       when directive in ["ExecStart", "ExecReload", "ExecStop"] do
+    non_empty("Service", directive, value, span)
+  end
+
+  defp value_errors("Service", directive, value, span)
+       when directive in ["TimeoutStartSec", "TimeoutStopSec", "RestartSec"] do
+    duration("Service", directive, value, span)
+  end
+
+  defp value_errors("Timer", directive, value, span)
+       when directive in [
+              "OnActiveSec",
+              "OnBootSec",
+              "OnStartupSec",
+              "OnUnitActiveSec",
+              "OnUnitInactiveSec",
+              "AccuracySec",
+              "RandomizedDelaySec"
+            ] do
+    duration("Timer", directive, value, span)
+  end
+
+  defp value_errors("Timer", "Persistent", value, span),
+    do: boolean("Timer", "Persistent", value, span)
+
+  defp value_errors("Timer", "OnCalendar", value, span),
+    do: non_empty("Timer", "OnCalendar", value, span)
+
+  defp value_errors("Socket", directive, value, span)
+       when directive in ["ListenStream", "ListenDatagram", "ListenSequentialPacket"] do
+    non_empty("Socket", directive, value, span)
+  end
+
+  defp value_errors("Socket", "SocketMode", value, span),
+    do: octal_mode("Socket", "SocketMode", value, span)
+
+  defp value_errors("Install", directive, value, span)
+       when directive in ["WantedBy", "RequiredBy", "Also", "Alias"] do
+    non_empty_words("Install", directive, value, span)
+  end
+
+  defp value_errors(_section, _directive, _value, _span), do: []
+
+  defp one_of(section, directive, value, allowed, span) do
+    if value in allowed do
+      []
+    else
+      [
+        value_error(
+          section,
+          directive,
+          value,
+          "expected one of #{Enum.join(allowed, ", ")}",
+          span
+        )
+      ]
+    end
+  end
+
+  defp boolean(section, directive, value, span) do
+    one_of(section, directive, String.downcase(value), ~w(1 yes true on 0 no false off), span)
+  end
+
+  defp duration(_section, _directive, "infinity", _span), do: []
+
+  defp duration(section, directive, value, span) do
+    if String.match?(value, ~r/^\d+(\.\d+)?\s*(us|µs|ms|s|sec|m|min|h|hr|d|day|w|week)?$/) do
+      []
+    else
+      [
+        value_error(
+          section,
+          directive,
+          value,
+          "expected a systemd duration such as 10s, 5min, or infinity",
+          span
+        )
+      ]
+    end
+  end
+
+  defp octal_mode(section, directive, value, span) do
+    if String.match?(value, ~r/^[0-7]{3,4}$/) do
+      []
+    else
+      [value_error(section, directive, value, "expected an octal mode such as 0660", span)]
+    end
+  end
+
+  defp non_empty(section, directive, value, span) do
+    if String.trim(value) == "" do
+      [value_error(section, directive, value, "must not be empty", span)]
+    else
+      []
+    end
+  end
+
+  defp non_empty_words(section, directive, value, span) do
+    case Value.words(value) do
+      {:ok, [_ | _]} -> []
+      _other -> [value_error(section, directive, value, "must contain at least one value", span)]
+    end
+  end
+
+  defp value_error(section, directive, value, expectation, span) do
+    error(
+      :invalid_directive_value,
+      "invalid #{section}.#{directive} value #{inspect(value)}: #{expectation}",
+      section,
+      directive,
+      span
+    )
   end
 
   defp collect_directive_scope_errors(errors, unit_file) do

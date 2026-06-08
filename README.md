@@ -9,6 +9,7 @@ The current spike exposes a small D-Bus backed manager client:
 {:ok, units} = Systemd.Manager.list_units(conn)
 {:ok, unit} = Systemd.Manager.get_unit(conn, "dbus.service")
 {:ok, state} = Systemd.UnitObject.state(conn, unit)
+{:ok, service_state} = Systemd.UnitObject.service_state(conn, unit)
 ```
 
 It also includes a NimbleParsec-backed unit file parser/generator:
@@ -43,7 +44,7 @@ Systemd.list_units(bus: :session)
 
 ## Unit files
 
-`Systemd.UnitFile` preserves comments, blank lines, duplicate directives, reset directives, and source spans. Validation is intentionally separate from parsing:
+`Systemd.UnitFile` preserves comments, blank lines, duplicate directives, reset directives, and source spans. Validation is intentionally separate from parsing and includes directive-specific value checks for common service, socket, timer, and install keys:
 
 ```elixir
 unit_file = Systemd.UnitFile.parse!("[Service]\nExecStart=/bin/true\n")
@@ -65,9 +66,17 @@ cd /Users/dannote/Development/systemd
 SYSTEMD_INTEGRATION=1 mix test
 ```
 
+Or from macOS, copy the source into the VM and run the full integration suite:
+
+```sh
+scripts/integration_test.sh
+```
+
 Quick VM checks:
 
 ```sh
 ~/.local/bin/limactl shell systemd-test -- systemctl is-system-running
 ~/.local/bin/limactl shell systemd-test -- busctl --system list --no-pager
 ```
+
+See `docs/RELEASE_CHECKLIST.md` before publishing a release.

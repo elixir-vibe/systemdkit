@@ -104,6 +104,51 @@ defmodule Systemd.UnitFileTest do
              |> UnitFile.validate(:service)
   end
 
+  test "validates common directive values" do
+    assert :ok =
+             UnitFile.parse!("[Service]\nType=oneshot\nExecStart=/bin/true\nRestart=on-failure\n")
+             |> UnitFile.validate(:service)
+
+    assert {:error, errors} =
+             UnitFile.parse!(
+               "[Service]\nType=sometimes\nRestartSec=later\n[Timer]\nPersistent=maybe\n"
+             )
+             |> UnitFile.validate(:service)
+
+    assert Enum.any?(
+             errors,
+             &match?(
+               %Systemd.UnitFile.ValidationError{
+                 reason: :invalid_directive_value,
+                 directive: "Type"
+               },
+               &1
+             )
+           )
+
+    assert Enum.any?(
+             errors,
+             &match?(
+               %Systemd.UnitFile.ValidationError{
+                 reason: :invalid_directive_value,
+                 directive: "RestartSec"
+               },
+               &1
+             )
+           )
+
+    assert Enum.any?(
+             errors,
+             &match?(
+               %Systemd.UnitFile.ValidationError{
+                 reason: :invalid_directive_value,
+                 directive: "Persistent"
+               },
+               &1
+             )
+           )
+  end
+
   test "appends before trailing section trivia" do
     unit_file =
       UnitFile.parse!(
