@@ -1,6 +1,8 @@
 defmodule Systemd.MixProject do
   use Mix.Project
 
+  @source_url "https://github.com/elixir-vibe/systemd"
+
   def project do
     [
       app: :systemd,
@@ -49,13 +51,14 @@ defmodule Systemd.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{}
+      links: %{"GitHub" => @source_url}
     ]
   end
 
   defp docs do
     [
       main: "Systemd",
+      source_url: @source_url,
       extras: ["README.md"]
     ]
   end

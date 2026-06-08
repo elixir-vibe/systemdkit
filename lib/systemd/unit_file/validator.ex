@@ -22,6 +22,35 @@ defmodule Systemd.UnitFile.Validator do
     "path" => ["Path"]
   }
 
+  @known_directives %{
+    "Unit" =>
+      MapSet.new(
+        ~w(Description Documentation Requires Wants After Before BindsTo PartOf Conflicts ConditionPathExists AssertPathExists StartLimitIntervalSec StartLimitBurst)
+      ),
+    "Service" =>
+      MapSet.new(
+        ~w(Type ExecStart ExecStartPre ExecStartPost ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory Environment EnvironmentFile TimeoutStartSec TimeoutStopSec KillSignal KillMode RemainAfterExit PIDFile RuntimeDirectory StateDirectory CacheDirectory LogsDirectory StandardOutput StandardError)
+      ),
+    "Install" => MapSet.new(~w(WantedBy RequiredBy Also Alias DefaultInstance)),
+    "Socket" =>
+      MapSet.new(
+        ~w(ListenStream ListenDatagram ListenSequentialPacket SocketUser SocketGroup SocketMode Accept Service)
+      ),
+    "Timer" =>
+      MapSet.new(
+        ~w(OnActiveSec OnBootSec OnStartupSec OnUnitActiveSec OnUnitInactiveSec OnCalendar Unit Persistent AccuracySec RandomizedDelaySec)
+      ),
+    "Target" => MapSet.new(~w(AllowIsolate)),
+    "Mount" =>
+      MapSet.new(
+        ~w(What Where Type Options SloppyOptions LazyUnmount ForceUnmount DirectoryMode TimeoutSec)
+      ),
+    "Path" =>
+      MapSet.new(
+        ~w(PathExists PathExistsGlob PathChanged PathModified DirectoryNotEmpty Unit MakeDirectory DirectoryMode)
+      )
+  }
+
   @doc false
   @spec validate(UnitFile.t(), String.t() | atom() | nil) :: :ok | {:error, [ValidationError.t()]}
   def validate(%UnitFile{} = unit_file, type \\ nil) do
@@ -31,6 +60,7 @@ defmodule Systemd.UnitFile.Validator do
       |> collect_unknown_section_errors(unit_file, normalize_type(type))
       |> collect_missing_section_errors(unit_file, normalize_type(type))
       |> collect_directive_scope_errors(unit_file)
+      |> collect_unknown_directive_errors(unit_file)
 
     case Enum.reverse(errors) do
       [] -> :ok
@@ -103,6 +133,38 @@ defmodule Systemd.UnitFile.Validator do
         ]
       end
     end)
+  end
+
+  defp collect_unknown_directive_errors(errors, unit_file) do
+    {_section, errors} =
+      Enum.reduce(unit_file.entries, {nil, errors}, fn
+        %Section{name: section}, {_current_section, errors} ->
+          {section, errors}
+
+        %Directive{name: directive, span: span}, {section, errors} when is_binary(section) ->
+          allowed = Map.get(@known_directives, section)
+
+          if is_nil(allowed) or MapSet.member?(allowed, directive) do
+            {section, errors}
+          else
+            {section,
+             [
+               error(
+                 :unknown_directive,
+                 "unknown directive #{inspect(directive)} in section #{inspect(section)}",
+                 section,
+                 directive,
+                 span
+               )
+               | errors
+             ]}
+          end
+
+        _entry, acc ->
+          acc
+      end)
+
+    errors
   end
 
   defp collect_directive_scope_errors(errors, unit_file) do

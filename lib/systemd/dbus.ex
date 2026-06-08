@@ -73,7 +73,11 @@ defmodule Systemd.DBus do
     |> Connection.send(message)
     |> to_result()
   catch
-    :exit, reason -> {:error, Error.connection_error(reason)}
+    :exit, {{%FunctionClauseError{}, _stacktrace}, _call} = reason ->
+      {:error, Error.encoding_error(reason)}
+
+    :exit, reason ->
+      {:error, Error.connection_error(reason)}
   end
 
   defp to_result(%Message{type: :method_return, body: body} = message) do

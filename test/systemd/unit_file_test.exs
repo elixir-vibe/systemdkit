@@ -92,12 +92,16 @@ defmodule Systemd.UnitFileTest do
              "[Unit]\nDescription=My app\nAfter=network.target\nAfter=postgresql.service\n[Service]\nExecStart=/opt/app/bin/app start\nRestart=always\n[Install]\nWantedBy=multi-user.target\n"
   end
 
-  test "validates unit file sections" do
+  test "validates unit file sections and directives" do
     assert :ok =
              UnitFile.parse!("[Service]\nExecStart=/bin/true\n") |> UnitFile.validate(:service)
 
     assert {:error, [%Systemd.UnitFile.ValidationError{reason: :missing_section}]} =
              UnitFile.parse!("[Unit]\nDescription=Only metadata\n") |> UnitFile.validate(:service)
+
+    assert {:error, [%Systemd.UnitFile.ValidationError{reason: :unknown_directive}]} =
+             UnitFile.parse!("[Service]\nDefinitelyNotAServiceDirective=true\n")
+             |> UnitFile.validate(:service)
   end
 
   test "appends before trailing section trivia" do

@@ -27,9 +27,19 @@ unit_file =
 
 The package depends on [`rebus`](https://hex.pm/packages/rebus) for the D-Bus wire protocol instead of shelling out to `systemctl`.
 
+APIs return idiomatic `{:ok, value}` / `{:error, %Systemd.Error{}}` tuples. Permission and polkit failures are classified with `category: :permission` and can be checked with `Systemd.Error.permission?/1`.
+
+See `examples/` for service, timer, and user-bus snippets.
+
 ## Permissions
 
-Systemd control happens over the system D-Bus. Read-only calls such as listing units usually work as an unprivileged user. Mutating calls such as daemon reload, starting system units, enabling units, or writing to `/etc/systemd/system` may require root or a polkit rule for the caller. The package returns structured `Systemd.Error` values for D-Bus policy failures instead of retrying through `sudo`.
+Systemd control happens over D-Bus. Read-only calls such as listing units usually work as an unprivileged user. Mutating calls such as daemon reload, starting system units, enabling units, or writing to `/etc/systemd/system` may require root or a polkit rule for the caller. The package returns structured `Systemd.Error` values for D-Bus policy failures instead of retrying through `sudo`.
+
+For user units, pass `bus: :session` when a systemd user session bus is available:
+
+```elixir
+Systemd.list_units(bus: :session)
+```
 
 ## Unit files
 

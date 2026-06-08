@@ -13,6 +13,16 @@ defmodule Systemd.ErrorTest do
            } = Error.dbus_error("org.freedesktop.DBus.Error.AccessDenied", ["permission denied"])
   end
 
+  test "classifies polkit and permission errors" do
+    error =
+      Error.dbus_error("org.freedesktop.DBus.Error.InteractiveAuthorizationRequired", [
+        "Interactive authentication required."
+      ])
+
+    assert %Error{reason: :interactive_authorization_required, category: :permission} = error
+    assert Error.permission?(error)
+  end
+
   test "builds connection errors" do
     assert %Error{
              source: :connection,
