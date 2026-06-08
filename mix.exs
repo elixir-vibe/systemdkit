@@ -1,7 +1,7 @@
 defmodule Systemd.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/elixir-vibe/systemd"
+  @source_url "https://github.com/dannote/systemd"
 
   def project do
     [
