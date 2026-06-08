@@ -1,8 +1,4 @@
 defmodule SystemdTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest Systemd
-
-  test "greets the world" do
-    assert Systemd.hello() == :world
-  end
 end

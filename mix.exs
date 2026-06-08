@@ -15,7 +15,7 @@ defmodule Systemd.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :rebus]
     ]
   end
 
@@ -33,6 +33,7 @@ defmodule Systemd.MixProject do
       {:ex_dna, "~> 1.0", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:rebus, "~> 0.2.0"},
       {:vibe_kit, "== 0.1.2"},
       {:igniter, "~> 0.6", only: [:dev, :test]}
       # {:dep_from_hexpm, "~> 0.3.0"},

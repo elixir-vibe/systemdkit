@@ -1,21 +1,25 @@
 # Systemd
 
-**TODO: Add description**
+Pure Elixir tools for working with systemd.
 
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `systemd` to your list of dependencies in `mix.exs`:
+The current spike exposes a small D-Bus backed manager client:
 
 ```elixir
-def deps do
-  [
-    {:systemd, "~> 0.1.0"}
-  ]
-end
+{:ok, conn} = Systemd.Manager.connect()
+{:ok, units} = Systemd.Manager.list_units(conn)
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/systemd>.
+The package depends on [`rebus`](https://hex.pm/packages/rebus) for the D-Bus wire protocol instead of shelling out to `systemctl`.
 
+## Development
+
+```sh
+mix deps.get
+mix ci
+```
+
+Integration tests are excluded by default because they require Linux with systemd and a system bus:
+
+```sh
+SYSTEMD_INTEGRATION=1 mix test
+```
