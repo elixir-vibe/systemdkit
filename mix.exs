@@ -1,12 +1,13 @@
 defmodule Systemd.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/dannote/systemd"
+  @version "0.1.0-pre.0"
+  @source_url "https://github.com/elixir-vibe/systemd"
 
   def project do
     [
       app: :systemd,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       description: "Pure Elixir tools for systemd unit files and D-Bus manager control",
@@ -57,9 +58,10 @@ defmodule Systemd.MixProject do
 
   defp docs do
     [
-      main: "Systemd",
+      main: "readme",
       source_url: @source_url,
-      extras: ["README.md"]
+      source_ref: "v#{@version}",
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"]
     ]
   end
 
