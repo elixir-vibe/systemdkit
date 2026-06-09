@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `Systemd.UnitName` helpers for formatting typed, template, and instance unit names.
+
 ## v0.1.1
 
 - Renamed the OTP application from `:systemd` to `:systemdkit` so dependencies can use the normal `{:systemdkit, "~> 0.1.1"}` form.

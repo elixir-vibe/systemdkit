@@ -76,6 +76,7 @@ defmodule Systemd.MixProject do
           Systemd.Properties
         ],
         "Unit files": [
+          Systemd.UnitName,
           Systemd.UnitFile,
           Systemd.UnitFile.Blank,
           Systemd.UnitFile.Builder,
