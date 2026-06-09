@@ -21,7 +21,15 @@ unit_file =
       restart: "on-failure",
       restart_sec: 5,
       timeout_stop_sec: 30,
-      limit_nofile: 1_048_576
+      limit_nofile: 1_048_576,
+      cpu_accounting: true,
+      cpu_quota: "50%",
+      memory_accounting: true,
+      memory_max: "512M",
+      tasks_max: 512,
+      no_new_privileges: true,
+      protect_system: :strict,
+      protect_home: "read-only"
     ],
     install: [wanted_by: "multi-user.target"]
   )

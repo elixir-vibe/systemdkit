@@ -151,12 +151,50 @@ defmodule Systemd.UnitFileTest do
           syslog_identifier: "app",
           limit_nofile: 1_048_576,
           limit_memlock: :infinity,
+          cpu_accounting: true,
+          cpu_quota: "50%",
+          memory_max: "512M",
+          tasks_max: 512,
+          no_new_privileges: true,
+          protect_system: :strict,
           oom_policy: :stop
         ]
       )
 
     assert UnitFile.to_string(unit_file) ==
-             "[Service]\nPIDFile=/run/app.pid\nSyslogIdentifier=app\nLimitNOFILE=1048576\nLimitMEMLOCK=infinity\nOOMPolicy=stop\n"
+             "[Service]\nPIDFile=/run/app.pid\nSyslogIdentifier=app\nLimitNOFILE=1048576\nLimitMEMLOCK=infinity\nCPUAccounting=true\nCPUQuota=50%\nMemoryMax=512M\nTasksMax=512\nNoNewPrivileges=true\nProtectSystem=strict\nOOMPolicy=stop\n"
+  end
+
+  test "validates sandboxing and security directives" do
+    assert :ok =
+             UnitFile.parse!(
+               "[Service]\nExecStart=/bin/true\nNoNewPrivileges=yes\nPrivateTmp=true\nPrivateDevices=no\nPrivateNetwork=false\nPrivateUsers=off\nProtectSystem=strict\nProtectHome=read-only\nProtectKernelTunables=true\nProtectControlGroups=true\nRestrictAddressFamilies=AF_UNIX AF_INET\nSystemCallFilter=@system-service\nCapabilityBoundingSet=CAP_NET_BIND_SERVICE\n"
+             )
+             |> UnitFile.validate(:service)
+
+    assert {:error, errors} =
+             UnitFile.parse!(
+               "[Service]\nExecStart=/bin/true\nNoNewPrivileges=maybe\nProtectSystem=locked\nProtectHome=hidden\nRestrictAddressFamilies=\n"
+             )
+             |> UnitFile.validate(:service)
+
+    for directive <- [
+          "NoNewPrivileges",
+          "ProtectSystem",
+          "ProtectHome",
+          "RestrictAddressFamilies"
+        ] do
+      assert Enum.any?(
+               errors,
+               &match?(
+                 %Systemd.UnitFile.ValidationError{
+                   reason: :invalid_directive_value,
+                   directive: ^directive
+                 },
+                 &1
+               )
+             )
+    end
   end
 
   test "validates common cgroup and resource-control directives" do

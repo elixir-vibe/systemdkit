@@ -29,7 +29,7 @@ defmodule Systemd.UnitFile.Validator do
       ),
     "Service" =>
       MapSet.new(
-        ~w(Type ExecStart ExecStartPre ExecStartPost ExecCondition ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory RootDirectory Environment EnvironmentFile PassEnvironment UnsetEnvironment TimeoutStartSec TimeoutStopSec TimeoutAbortSec KillSignal KillMode RemainAfterExit GuessMainPID PIDFile RuntimeDirectory RuntimeDirectoryPreserve StateDirectory CacheDirectory LogsDirectory ConfigurationDirectory StandardOutput StandardError SyslogIdentifier Slice Delegate CPUAccounting CPUWeight CPUQuota MemoryAccounting MemoryMin MemoryLow MemoryHigh MemoryMax MemorySwapMax TasksAccounting TasksMax IOAccounting IOWeight IPAccounting LimitNOFILE LimitNPROC LimitMEMLOCK LimitCORE LimitCPU LimitAS LimitFSIZE NoNewPrivileges PrivateTmp PrivateDevices ProtectSystem ProtectHome AmbientCapabilities CapabilityBoundingSet ReadWritePaths ReadOnlyPaths InaccessiblePaths OOMPolicy)
+        ~w(Type ExecStart ExecStartPre ExecStartPost ExecCondition ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory RootDirectory Environment EnvironmentFile PassEnvironment UnsetEnvironment TimeoutStartSec TimeoutStopSec TimeoutAbortSec KillSignal KillMode RemainAfterExit GuessMainPID PIDFile RuntimeDirectory RuntimeDirectoryPreserve StateDirectory CacheDirectory LogsDirectory ConfigurationDirectory StandardOutput StandardError SyslogIdentifier Slice Delegate CPUAccounting CPUWeight CPUQuota MemoryAccounting MemoryMin MemoryLow MemoryHigh MemoryMax MemorySwapMax TasksAccounting TasksMax IOAccounting IOWeight IPAccounting LimitNOFILE LimitNPROC LimitMEMLOCK LimitCORE LimitCPU LimitAS LimitFSIZE NoNewPrivileges PrivateTmp PrivateDevices PrivateNetwork PrivateUsers ProtectSystem ProtectHome ProtectKernelTunables ProtectKernelModules ProtectKernelLogs ProtectControlGroups ProtectClock ProtectHostname ProtectProc RestrictAddressFamilies RestrictNamespaces RestrictRealtime RestrictSUIDSGID SystemCallFilter SystemCallArchitectures SystemCallErrorNumber AmbientCapabilities CapabilityBoundingSet ReadWritePaths ReadOnlyPaths InaccessiblePaths OOMPolicy)
       ),
     "Install" => MapSet.new(~w(WantedBy RequiredBy Also Alias DefaultInstance)),
     "Socket" =>
@@ -231,7 +231,18 @@ defmodule Systemd.UnitFile.Validator do
               "IPAccounting",
               "NoNewPrivileges",
               "PrivateTmp",
-              "PrivateDevices"
+              "PrivateDevices",
+              "PrivateNetwork",
+              "PrivateUsers",
+              "ProtectKernelTunables",
+              "ProtectKernelModules",
+              "ProtectKernelLogs",
+              "ProtectControlGroups",
+              "ProtectClock",
+              "ProtectHostname",
+              "RestrictNamespaces",
+              "RestrictRealtime",
+              "RestrictSUIDSGID"
             ] do
     boolean("Service", directive, value, span)
   end
@@ -255,6 +266,45 @@ defmodule Systemd.UnitFile.Validator do
 
   defp value_errors("Service", "CPUQuota", value, span),
     do: percentage("Service", "CPUQuota", value, span)
+
+  defp value_errors("Service", "ProtectSystem", value, span) do
+    one_of(
+      "Service",
+      "ProtectSystem",
+      String.downcase(value),
+      ~w(1 yes true on 0 no false off full strict),
+      span
+    )
+  end
+
+  defp value_errors("Service", "ProtectHome", value, span) do
+    one_of(
+      "Service",
+      "ProtectHome",
+      String.downcase(value),
+      ~w(1 yes true on 0 no false off read-only tmpfs),
+      span
+    )
+  end
+
+  defp value_errors("Service", "ProtectProc", value, span) do
+    one_of("Service", "ProtectProc", value, ~w(default invisible ptraceable noaccess), span)
+  end
+
+  defp value_errors("Service", directive, value, span)
+       when directive in [
+              "RestrictAddressFamilies",
+              "SystemCallFilter",
+              "SystemCallArchitectures",
+              "SystemCallErrorNumber",
+              "AmbientCapabilities",
+              "CapabilityBoundingSet",
+              "ReadWritePaths",
+              "ReadOnlyPaths",
+              "InaccessiblePaths"
+            ] do
+    non_empty_words("Service", directive, value, span)
+  end
 
   defp value_errors("Service", "KillMode", value, span) do
     one_of("Service", "KillMode", value, ~w(control-group mixed process none), span)

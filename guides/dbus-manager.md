@@ -52,13 +52,23 @@ end)
 ## Job tracking
 
 Unit lifecycle methods return jobs through `Systemd.Manager`. Top-level helpers
-wait for jobs by default; pass `wait: false` to inspect the job yourself:
+wait for jobs by default; pass `wait: false` to inspect the job yourself.
+Polling is available through `Systemd.Job.await/3`; signal-driven waiting is
+available through `Systemd.Job.await_signal/3` and systemd's `JobRemoved` signal:
 
 ```elixir
 {:ok, conn} = Systemd.Manager.connect()
 {:ok, job} = Systemd.Manager.restart_unit(conn, "my_app@4000.service")
 {:ok, :running} = Systemd.Job.state(conn, job)
-:ok = Systemd.Job.await(conn, job, timeout: 10_000)
+:ok = Systemd.Job.await_signal(conn, job, timeout: 10_000)
+```
+
+For lower-level signal handling, subscribe to manager signals directly:
+
+```elixir
+{:ok, sub} = Systemd.Signal.subscribe_manager(conn)
+{:ok, removed} = Systemd.Signal.await_job_removed(sub, job.object_path)
+:ok = Systemd.Signal.unsubscribe(sub)
 ```
 
 Jobs can be cancelled through the job object when systemd still exposes it:

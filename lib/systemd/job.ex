@@ -3,7 +3,7 @@ defmodule Systemd.Job do
   A systemd job returned by manager operations such as `StartUnit`.
   """
 
-  alias Systemd.{DBus, Error, Properties}
+  alias Systemd.{DBus, Error, Properties, Signal}
 
   @interface "org.freedesktop.systemd1.Job"
 
@@ -48,6 +48,24 @@ defmodule Systemd.Job do
   def state(conn, job) do
     with {:ok, value} <- property(conn, job, "State") do
       {:ok, normalize_state(value)}
+    end
+  end
+
+  @doc """
+  Waits for this job's `JobRemoved` D-Bus signal.
+  """
+  @spec await_signal(pid(), t(), keyword()) :: :ok | {:error, Error.t()}
+  def await_signal(conn, %__MODULE__{object_path: path}, opts \\ []) do
+    with {:ok, subscription} <- Signal.subscribe_manager(conn) do
+      try do
+        case Signal.await_job_removed(subscription, path, opts) do
+          {:ok, %{result: "done"}} -> :ok
+          {:ok, %{result: result}} -> {:error, Error.protocol_error({:job_failed, result})}
+          {:error, error} -> {:error, error}
+        end
+      after
+        Signal.unsubscribe(subscription)
+      end
     end
   end
 

@@ -106,8 +106,10 @@ defmodule Systemd.ManagerIntegrationTest do
       TransientUnit.string("Description", "systemd Elixir resource integration test"),
       TransientUnit.string("Type", "oneshot"),
       TransientUnit.boolean("RemainAfterExit", true),
+      TransientUnit.boolean("CPUAccounting", true),
       TransientUnit.memory_max(67_108_864),
       TransientUnit.tasks_max(64),
+      TransientUnit.cpu_quota_per_sec_usec(500_000),
       TransientUnit.exec_start("/bin/true", ["/bin/true"])
     ]
 
@@ -116,15 +118,31 @@ defmodule Systemd.ManagerIntegrationTest do
         assert :ok = Job.await(conn, job, timeout: 5_000)
         assert {:ok, unit} = Manager.get_unit(conn, name)
 
-        assert {:ok, 67_108_864} =
-                 Properties.get(
-                   conn,
-                   unit.object_path,
-                   "org.freedesktop.systemd1.Service",
-                   "MemoryMax"
-                 )
+        assert {:ok, 67_108_864} = service_property(conn, unit, "MemoryMax")
+        assert {:ok, 64} = service_property(conn, unit, "TasksMax")
+        assert {:ok, 500_000} = service_property(conn, unit, "CPUQuotaPerSecUSec")
 
         assert :ok = Manager.stop_unit(conn, name) |> await_or_ok(conn)
+
+      {:error, %Error{} = error} ->
+        assert Error.permission?(error)
+    end
+  end
+
+  test "waits for job completion using JobRemoved signal" do
+    assert {:ok, conn} = Manager.connect()
+
+    name = "systemd-elixir-signal-test-#{System.unique_integer([:positive])}.service"
+
+    properties = [
+      TransientUnit.string("Description", "systemd Elixir signal integration test"),
+      TransientUnit.string("Type", "oneshot"),
+      TransientUnit.exec_start("/bin/sleep", ["/bin/sleep", "1"])
+    ]
+
+    case Manager.start_transient_unit(conn, name, properties) do
+      {:ok, %Job{} = job} ->
+        assert :ok = Job.await_signal(conn, job, timeout: 5_000)
 
       {:error, %Error{} = error} ->
         assert Error.permission?(error)
@@ -150,6 +168,10 @@ defmodule Systemd.ManagerIntegrationTest do
        %Systemd.Error{dbus_name: "org.freedesktop.DBus.Error.InteractiveAuthorizationRequired"}} ->
         :ok
     end
+  end
+
+  defp service_property(conn, unit, property) do
+    Properties.get(conn, unit.object_path, "org.freedesktop.systemd1.Service", property)
   end
 
   defp await_or_ok({:ok, %Job{} = job}, conn), do: Job.await(conn, job, timeout: 5_000)
