@@ -7,6 +7,10 @@ defmodule Systemd.UnitFile.Builder do
 
   @type directives :: keyword() | %{optional(atom() | String.t()) => term()}
 
+  @directive_names %{
+    limit_nofile: "LimitNOFILE"
+  }
+
   @doc """
   Builds a unit file from common `Unit`, `Service`, and `Install` sections.
   """
@@ -46,9 +50,11 @@ defmodule Systemd.UnitFile.Builder do
   end
 
   defp normalize_name(name) when is_atom(name) do
-    name
-    |> Atom.to_string()
-    |> Macro.camelize()
+    Map.get_lazy(@directive_names, name, fn ->
+      name
+      |> Atom.to_string()
+      |> Macro.camelize()
+    end)
   end
 
   defp normalize_name(name) when is_binary(name), do: name

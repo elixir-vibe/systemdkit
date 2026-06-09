@@ -62,7 +62,8 @@ defmodule Systemd.MixProject do
       main: "readme",
       source_url: @source_url,
       source_ref: "v#{@version}",
-      extras: ["README.md", "CHANGELOG.md", "LICENSE"]
+      extras: ["README.md", "CHANGELOG.md", "LICENSE", "guides/xamal-style-deployment.md"],
+      groups_for_extras: [Guides: ~r/guides\//]
     ]
   end
 

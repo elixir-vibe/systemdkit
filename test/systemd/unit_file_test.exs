@@ -84,7 +84,7 @@ defmodule Systemd.UnitFileTest do
     unit_file =
       UnitFile.service(
         unit: [description: "My app", after: ["network.target", "postgresql.service"]],
-        service: [exec_start: "/opt/app/bin/app start", restart: :always, LimitNOFILE: 1_048_576],
+        service: [exec_start: "/opt/app/bin/app start", restart: :always, limit_nofile: 1_048_576],
         install: [wanted_by: "multi-user.target"]
       )
 
