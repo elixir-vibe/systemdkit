@@ -3,7 +3,7 @@ defmodule Systemd.Manager do
   Client for `org.freedesktop.systemd1.Manager`.
   """
 
-  alias Systemd.{DBus, Error, Job, Unit, UnitFileOperation, UnitFileStatus, UnitObject}
+  alias Systemd.{DBus, Error, Job, JobStatus, Unit, UnitFileOperation, UnitFileStatus, UnitObject}
   alias Systemd.Manager.Options
   alias Systemd.TransientUnit.{AuxUnit, Property}
 
@@ -38,6 +38,16 @@ defmodule Systemd.Manager do
   def list_units(opts) when is_list(opts) do
     with {:ok, conn} <- connect(opts) do
       list_units(conn)
+    end
+  end
+
+  @doc """
+  Lists currently queued jobs.
+  """
+  @spec list_jobs(pid()) :: {:ok, [JobStatus.t()]} | {:error, Error.t()}
+  def list_jobs(conn) when is_pid(conn) do
+    with {:ok, [jobs]} <- call(conn, "ListJobs") do
+      {:ok, Enum.map(jobs, &JobStatus.from_dbus/1)}
     end
   end
 
@@ -111,6 +121,51 @@ defmodule Systemd.Manager do
   @spec reload_unit(pid(), String.t(), keyword()) :: {:ok, Job.t()} | {:error, Error.t()}
   def reload_unit(conn, unit_name, opts \\ []) do
     unit_operation(conn, "ReloadUnit", unit_name, opts)
+  end
+
+  @doc """
+  Tries to restart a unit only if it is already active.
+  """
+  @spec try_restart_unit(pid(), String.t(), keyword()) :: {:ok, Job.t()} | {:error, Error.t()}
+  def try_restart_unit(conn, unit_name, opts \\ []) do
+    unit_operation(conn, "TryRestartUnit", unit_name, opts)
+  end
+
+  @doc """
+  Reloads a unit if supported, otherwise restarts it.
+  """
+  @spec reload_or_restart_unit(pid(), String.t(), keyword()) ::
+          {:ok, Job.t()} | {:error, Error.t()}
+  def reload_or_restart_unit(conn, unit_name, opts \\ []) do
+    unit_operation(conn, "ReloadOrRestartUnit", unit_name, opts)
+  end
+
+  @doc """
+  Reloads a unit if supported, otherwise tries to restart it only if active.
+  """
+  @spec reload_or_try_restart_unit(pid(), String.t(), keyword()) ::
+          {:ok, Job.t()} | {:error, Error.t()}
+  def reload_or_try_restart_unit(conn, unit_name, opts \\ []) do
+    unit_operation(conn, "ReloadOrTryRestartUnit", unit_name, opts)
+  end
+
+  @doc """
+  Resets failed state for a unit.
+  """
+  @spec reset_failed_unit(pid(), String.t()) :: :ok | {:error, Error.t()}
+  def reset_failed_unit(conn, unit_name) when is_pid(conn) and is_binary(unit_name) do
+    with {:ok, []} <- call(conn, "ResetFailedUnit", [unit_name], "s"), do: :ok
+  end
+
+  @doc """
+  Sends a Unix signal to processes belonging to a unit.
+  """
+  @spec kill_unit(pid(), String.t(), String.t(), integer()) :: :ok | {:error, Error.t()}
+  def kill_unit(conn, unit_name, who \\ "all", signal \\ 15)
+
+  def kill_unit(conn, unit_name, who, signal)
+      when is_pid(conn) and is_binary(unit_name) and is_binary(who) and is_integer(signal) do
+    with {:ok, []} <- call(conn, "KillUnit", [unit_name, who, signal], "ssi"), do: :ok
   end
 
   @doc """

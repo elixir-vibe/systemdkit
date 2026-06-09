@@ -33,6 +33,24 @@ defmodule Systemd.UnitFile do
   defdelegate timer(opts), to: Builder
 
   @doc """
+  Builds a mount unit file from common `Unit`, `Mount`, and `Install` sections.
+  """
+  @spec mount(keyword()) :: t()
+  defdelegate mount(opts), to: Builder
+
+  @doc """
+  Builds a path unit file from common `Unit`, `Path`, and `Install` sections.
+  """
+  @spec path(keyword()) :: t()
+  defdelegate path(opts), to: Builder
+
+  @doc """
+  Builds a target unit file from common `Unit`, `Target`, and `Install` sections.
+  """
+  @spec target(keyword()) :: t()
+  defdelegate target(opts), to: Builder
+
+  @doc """
   Parses unit file text.
   """
   @spec parse(String.t()) :: {:ok, t()} | {:error, term()}

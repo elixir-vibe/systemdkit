@@ -3,7 +3,7 @@ defmodule Systemd.Job do
   A systemd job returned by manager operations such as `StartUnit`.
   """
 
-  alias Systemd.{Error, Properties}
+  alias Systemd.{DBus, Error, Properties}
 
   @interface "org.freedesktop.systemd1.Job"
 
@@ -23,6 +23,32 @@ defmodule Systemd.Job do
   @spec property(pid(), t(), String.t()) :: {:ok, term()} | {:error, Error.t()}
   def property(conn, %__MODULE__{object_path: path}, property) do
     Properties.get(conn, path, @interface, property)
+  end
+
+  @doc """
+  Cancels this job through its D-Bus object.
+  """
+  @spec cancel(pid(), t()) :: :ok | {:error, Error.t()}
+  def cancel(conn, %__MODULE__{object_path: path}) do
+    with {:ok, []} <-
+           DBus.call_body(conn,
+             destination: "org.freedesktop.systemd1",
+             path: path,
+             interface: @interface,
+             member: "Cancel"
+           ) do
+      :ok
+    end
+  end
+
+  @doc """
+  Reads and normalizes the job state.
+  """
+  @spec state(pid(), t()) :: {:ok, state()} | {:error, Error.t()}
+  def state(conn, job) do
+    with {:ok, value} <- property(conn, job, "State") do
+      {:ok, normalize_state(value)}
+    end
   end
 
   @doc """
@@ -55,12 +81,6 @@ defmodule Systemd.Job do
 
       {:error, error} ->
         {:error, error}
-    end
-  end
-
-  defp state(conn, job) do
-    with {:ok, value} <- property(conn, job, "State") do
-      {:ok, normalize_state(value)}
     end
   end
 

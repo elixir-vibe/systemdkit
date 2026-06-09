@@ -71,6 +71,39 @@ defmodule Systemd.UnitFile.Builder do
   end
 
   @doc """
+  Builds a mount unit file from common `Unit`, `Mount`, and `Install` sections.
+  """
+  @spec mount(keyword()) :: UnitFile.t()
+  def mount(opts) when is_list(opts) do
+    UnitFile.parse!("")
+    |> maybe_append_section("Unit", Keyword.get(opts, :unit, []))
+    |> maybe_append_section("Mount", Keyword.get(opts, :mount, []))
+    |> maybe_append_section("Install", Keyword.get(opts, :install, []))
+  end
+
+  @doc """
+  Builds a path unit file from common `Unit`, `Path`, and `Install` sections.
+  """
+  @spec path(keyword()) :: UnitFile.t()
+  def path(opts) when is_list(opts) do
+    UnitFile.parse!("")
+    |> maybe_append_section("Unit", Keyword.get(opts, :unit, []))
+    |> maybe_append_section("Path", Keyword.get(opts, :path, []))
+    |> maybe_append_section("Install", Keyword.get(opts, :install, []))
+  end
+
+  @doc """
+  Builds a target unit file from common `Unit`, `Target`, and `Install` sections.
+  """
+  @spec target(keyword()) :: UnitFile.t()
+  def target(opts) when is_list(opts) do
+    UnitFile.parse!("")
+    |> maybe_append_section("Unit", Keyword.get(opts, :unit, []))
+    |> maybe_append_section("Target", Keyword.get(opts, :target, []))
+    |> maybe_append_section("Install", Keyword.get(opts, :install, []))
+  end
+
+  @doc """
   Builds a unit file with one section.
   """
   @spec section(String.t(), directives()) :: UnitFile.t()

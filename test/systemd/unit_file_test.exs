@@ -114,6 +114,35 @@ defmodule Systemd.UnitFileTest do
              "[Unit]\nDescription=App timer\n[Timer]\nOnCalendar=*:0/5\nPersistent=true\nRandomizedDelaySec=30s\n[Install]\nWantedBy=timers.target\n"
   end
 
+  test "builds mount, path, and target unit sections" do
+    mount =
+      UnitFile.mount(
+        mount: [
+          what: "/dev/disk/by-label/data",
+          where: "/srv/data",
+          type: "ext4",
+          directory_mode: "0755",
+          timeout_sec: "30s"
+        ]
+      )
+
+    assert UnitFile.to_string(mount) ==
+             "[Mount]\nWhat=/dev/disk/by-label/data\nWhere=/srv/data\nType=ext4\nDirectoryMode=0755\nTimeoutSec=30s\n"
+
+    path =
+      UnitFile.path(
+        path: [path_changed: "/etc/app/config.toml", make_directory: true, directory_mode: "0750"]
+      )
+
+    assert UnitFile.to_string(path) ==
+             "[Path]\nPathChanged=/etc/app/config.toml\nMakeDirectory=true\nDirectoryMode=0750\n"
+
+    target = UnitFile.target(unit: [description: "App stack"], target: [allow_isolate: true])
+
+    assert UnitFile.to_string(target) ==
+             "[Unit]\nDescription=App stack\n[Target]\nAllowIsolate=true\n"
+  end
+
   test "preserves known systemd acronym directive names" do
     unit_file =
       UnitFile.service(
@@ -141,6 +170,72 @@ defmodule Systemd.UnitFileTest do
     assert {:error, [%Systemd.UnitFile.ValidationError{reason: :unknown_directive}]} =
              UnitFile.parse!("[Service]\nDefinitelyNotAServiceDirective=true\n")
              |> UnitFile.validate(:service)
+  end
+
+  test "validates mount, path, and target directive values" do
+    assert :ok =
+             UnitFile.parse!(
+               "[Mount]\nWhat=/dev/sda1\nWhere=/mnt/data\nDirectoryMode=0755\nTimeoutSec=1min\n"
+             )
+             |> UnitFile.validate(:mount)
+
+    assert :ok =
+             UnitFile.parse!(
+               "[Path]\nPathChanged=/etc/app/config.toml\nMakeDirectory=yes\nDirectoryMode=0750\nTriggerLimitIntervalSec=10s\n"
+             )
+             |> UnitFile.validate(:path)
+
+    assert :ok = UnitFile.parse!("[Target]\nAllowIsolate=true\n") |> UnitFile.validate(:target)
+
+    assert {:error, errors} =
+             UnitFile.parse!(
+               "[Mount]\nWhat=\nWhere=/mnt/data\nDirectoryMode=invalid\n[Path]\nMakeDirectory=maybe\n[Target]\nAllowIsolate=perhaps\n"
+             )
+             |> UnitFile.validate()
+
+    assert Enum.any?(
+             errors,
+             &match?(
+               %Systemd.UnitFile.ValidationError{
+                 reason: :invalid_directive_value,
+                 directive: "What"
+               },
+               &1
+             )
+           )
+
+    assert Enum.any?(
+             errors,
+             &match?(
+               %Systemd.UnitFile.ValidationError{
+                 reason: :invalid_directive_value,
+                 directive: "DirectoryMode"
+               },
+               &1
+             )
+           )
+
+    assert Enum.any?(
+             errors,
+             &match?(
+               %Systemd.UnitFile.ValidationError{
+                 reason: :invalid_directive_value,
+                 directive: "MakeDirectory"
+               },
+               &1
+             )
+           )
+
+    assert Enum.any?(
+             errors,
+             &match?(
+               %Systemd.UnitFile.ValidationError{
+                 reason: :invalid_directive_value,
+                 directive: "AllowIsolate"
+               },
+               &1
+             )
+           )
   end
 
   test "validates common directive values" do

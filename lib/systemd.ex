@@ -62,6 +62,14 @@ defmodule Systemd do
   end
 
   @doc """
+  Lists queued jobs using a short-lived connection.
+  """
+  @spec list_jobs(keyword()) :: {:ok, [Systemd.JobStatus.t()]} | {:error, Error.t()}
+  def list_jobs(opts \\ []) do
+    with_connection(opts, &Manager.list_jobs/1)
+  end
+
+  @doc """
   Reads common state for a unit using a short-lived connection.
   """
   @spec unit_state(String.t(), keyword()) :: {:ok, Systemd.UnitState.t()} | {:error, Error.t()}
@@ -119,6 +127,49 @@ defmodule Systemd do
   @spec reload_unit(String.t(), keyword()) :: :ok | {:ok, Systemd.Job.t()} | {:error, Error.t()}
   def reload_unit(name, opts \\ []) do
     run_unit_operation(:reload_unit, name, opts)
+  end
+
+  @doc """
+  Tries to restart a unit only if it is already active.
+  """
+  @spec try_restart_unit(String.t(), keyword()) ::
+          :ok | {:ok, Systemd.Job.t()} | {:error, Error.t()}
+  def try_restart_unit(name, opts \\ []) do
+    run_unit_operation(:try_restart_unit, name, opts)
+  end
+
+  @doc """
+  Reloads a unit if supported, otherwise restarts it.
+  """
+  @spec reload_or_restart_unit(String.t(), keyword()) ::
+          :ok | {:ok, Systemd.Job.t()} | {:error, Error.t()}
+  def reload_or_restart_unit(name, opts \\ []) do
+    run_unit_operation(:reload_or_restart_unit, name, opts)
+  end
+
+  @doc """
+  Reloads a unit if supported, otherwise tries to restart it only if active.
+  """
+  @spec reload_or_try_restart_unit(String.t(), keyword()) ::
+          :ok | {:ok, Systemd.Job.t()} | {:error, Error.t()}
+  def reload_or_try_restart_unit(name, opts \\ []) do
+    run_unit_operation(:reload_or_try_restart_unit, name, opts)
+  end
+
+  @doc """
+  Resets failed state for a unit using a short-lived connection.
+  """
+  @spec reset_failed_unit(String.t(), keyword()) :: :ok | {:error, Error.t()}
+  def reset_failed_unit(name, opts \\ []) do
+    with_connection(opts, &Manager.reset_failed_unit(&1, name))
+  end
+
+  @doc """
+  Sends a Unix signal to processes belonging to a unit using a short-lived connection.
+  """
+  @spec kill_unit(String.t(), String.t(), integer(), keyword()) :: :ok | {:error, Error.t()}
+  def kill_unit(name, who \\ "all", signal \\ 15, opts \\ []) do
+    with_connection(opts, &Manager.kill_unit(&1, name, who, signal))
   end
 
   @doc """

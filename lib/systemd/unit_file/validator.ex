@@ -40,14 +40,14 @@ defmodule Systemd.UnitFile.Validator do
       MapSet.new(
         ~w(OnActiveSec OnBootSec OnStartupSec OnUnitActiveSec OnUnitInactiveSec OnCalendar Unit Persistent AccuracySec RandomizedDelaySec FixedRandomDelay WakeSystem RemainAfterElapse)
       ),
-    "Target" => MapSet.new(~w(AllowIsolate)),
+    "Target" => MapSet.new(~w(AllowIsolate StopWhenUnneeded RefuseManualStart RefuseManualStop)),
     "Mount" =>
       MapSet.new(
-        ~w(What Where Type Options SloppyOptions LazyUnmount ForceUnmount DirectoryMode TimeoutSec)
+        ~w(What Where Type Options SloppyOptions LazyUnmount ForceUnmount DirectoryMode TimeoutSec ReadWriteOnly ExtraOptions)
       ),
     "Path" =>
       MapSet.new(
-        ~w(PathExists PathExistsGlob PathChanged PathModified DirectoryNotEmpty Unit MakeDirectory DirectoryMode)
+        ~w(PathExists PathExistsGlob PathChanged PathModified DirectoryNotEmpty Unit MakeDirectory DirectoryMode TriggerLimitIntervalSec TriggerLimitBurst)
       )
   }
 
@@ -278,6 +278,51 @@ defmodule Systemd.UnitFile.Validator do
        when directive in ["Accept", "Writable", "KeepAlive", "NoDelay", "FreeBind"] do
     boolean("Socket", directive, value, span)
   end
+
+  defp value_errors("Target", directive, value, span)
+       when directive in [
+              "AllowIsolate",
+              "StopWhenUnneeded",
+              "RefuseManualStart",
+              "RefuseManualStop"
+            ] do
+    boolean("Target", directive, value, span)
+  end
+
+  defp value_errors("Mount", directive, value, span) when directive in ["What", "Where"] do
+    non_empty("Mount", directive, value, span)
+  end
+
+  defp value_errors("Mount", directive, value, span)
+       when directive in ["SloppyOptions", "LazyUnmount", "ForceUnmount", "ReadWriteOnly"] do
+    boolean("Mount", directive, value, span)
+  end
+
+  defp value_errors("Mount", "DirectoryMode", value, span),
+    do: octal_mode("Mount", "DirectoryMode", value, span)
+
+  defp value_errors("Mount", "TimeoutSec", value, span),
+    do: duration("Mount", "TimeoutSec", value, span)
+
+  defp value_errors("Path", directive, value, span)
+       when directive in [
+              "PathExists",
+              "PathExistsGlob",
+              "PathChanged",
+              "PathModified",
+              "DirectoryNotEmpty"
+            ] do
+    non_empty("Path", directive, value, span)
+  end
+
+  defp value_errors("Path", "MakeDirectory", value, span),
+    do: boolean("Path", "MakeDirectory", value, span)
+
+  defp value_errors("Path", "DirectoryMode", value, span),
+    do: octal_mode("Path", "DirectoryMode", value, span)
+
+  defp value_errors("Path", "TriggerLimitIntervalSec", value, span),
+    do: duration("Path", "TriggerLimitIntervalSec", value, span)
 
   defp value_errors("Install", directive, value, span)
        when directive in ["WantedBy", "RequiredBy", "Also", "Alias"] do

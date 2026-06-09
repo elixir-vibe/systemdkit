@@ -4,6 +4,7 @@ defmodule Systemd.ManagerIntegrationTest do
   alias Systemd.{
     Error,
     Job,
+    JobStatus,
     Manager,
     TransientUnit,
     Unit,
@@ -20,6 +21,12 @@ defmodule Systemd.ManagerIntegrationTest do
     assert {:ok, units} = Manager.list_units()
     assert Enum.any?(units, &match?(%Unit{name: "dbus.service"}, &1))
     assert Enum.any?(units, &(&1.name == "init.scope" or &1.name == "-.slice"))
+  end
+
+  test "lists queued jobs" do
+    assert {:ok, conn} = Manager.connect()
+    assert {:ok, jobs} = Manager.list_jobs(conn)
+    assert Enum.all?(jobs, &match?(%JobStatus{}, &1))
   end
 
   test "lists unit files and reads unit-file state" do

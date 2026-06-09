@@ -36,7 +36,7 @@ The package depends on [`rebus`](https://hex.pm/packages/rebus) for the D-Bus wi
 
 APIs return idiomatic `{:ok, value}` / `{:error, %Systemd.Error{}}` tuples. Permission and polkit failures are classified with `category: :permission` and can be checked with `Systemd.Error.permission?/1`.
 
-See `examples/` for service, timer, and user-bus snippets, and `guides/xamal-style-deployment.md` for a deployment-oriented template unit example.
+See `examples/` for service, timer, and user-bus snippets, `guides/dbus-manager.md` for D-Bus manager operations, and `guides/xamal-style-deployment.md` for a deployment-oriented template unit example.
 
 ## Permissions
 
