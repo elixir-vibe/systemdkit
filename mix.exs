@@ -1,12 +1,12 @@
 defmodule Systemd.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
-  @source_url "https://github.com/elixir-vibe/systemd"
+  @version "0.1.1"
+  @source_url "https://github.com/elixir-vibe/systemdkit"
 
   def project do
     [
-      app: :systemd,
+      app: :systemdkit,
       version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,

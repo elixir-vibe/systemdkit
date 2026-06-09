@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1
+
+- Renamed the OTP application from `:systemd` to `:systemdkit` so dependencies can use the normal `{:systemdkit, "~> 0.1.1"}` form.
+- Renamed the GitHub repository to `elixir-vibe/systemdkit`.
+- Kept public Elixir modules under the `Systemd.*` namespace.
+
 ## v0.1.0
 
 First stable release.

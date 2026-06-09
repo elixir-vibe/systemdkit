@@ -6,12 +6,12 @@ Pure Elixir tools for systemd unit files and D-Bus manager control.
 
 ## Installation
 
-The Hex package is named `systemdkit`; the Mix application and modules are `:systemd` / `Systemd`.
+The Hex package and Mix application are named `systemdkit`; public modules use the `Systemd` namespace.
 
 ```elixir
 def deps do
   [
-    {:systemd, "~> 0.1.0", hex: :systemdkit}
+    {:systemdkit, "~> 0.1.1"}
   ]
 end
 ```
