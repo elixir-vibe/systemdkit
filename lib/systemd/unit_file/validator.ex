@@ -29,7 +29,7 @@ defmodule Systemd.UnitFile.Validator do
       ),
     "Service" =>
       MapSet.new(
-        ~w(Type ExecStart ExecStartPre ExecStartPost ExecCondition ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory RootDirectory Environment EnvironmentFile PassEnvironment UnsetEnvironment TimeoutStartSec TimeoutStopSec TimeoutAbortSec KillSignal KillMode RemainAfterExit GuessMainPID PIDFile RuntimeDirectory RuntimeDirectoryPreserve StateDirectory CacheDirectory LogsDirectory ConfigurationDirectory StandardOutput StandardError SyslogIdentifier LimitNOFILE LimitNPROC LimitMEMLOCK LimitCORE LimitCPU LimitAS LimitFSIZE NoNewPrivileges PrivateTmp PrivateDevices ProtectSystem ProtectHome AmbientCapabilities CapabilityBoundingSet ReadWritePaths ReadOnlyPaths InaccessiblePaths OOMPolicy)
+        ~w(Type ExecStart ExecStartPre ExecStartPost ExecCondition ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory RootDirectory Environment EnvironmentFile PassEnvironment UnsetEnvironment TimeoutStartSec TimeoutStopSec TimeoutAbortSec KillSignal KillMode RemainAfterExit GuessMainPID PIDFile RuntimeDirectory RuntimeDirectoryPreserve StateDirectory CacheDirectory LogsDirectory ConfigurationDirectory StandardOutput StandardError SyslogIdentifier Slice Delegate CPUAccounting CPUWeight CPUQuota MemoryAccounting MemoryMin MemoryLow MemoryHigh MemoryMax MemorySwapMax TasksAccounting TasksMax IOAccounting IOWeight IPAccounting LimitNOFILE LimitNPROC LimitMEMLOCK LimitCORE LimitCPU LimitAS LimitFSIZE NoNewPrivileges PrivateTmp PrivateDevices ProtectSystem ProtectHome AmbientCapabilities CapabilityBoundingSet ReadWritePaths ReadOnlyPaths InaccessiblePaths OOMPolicy)
       ),
     "Install" => MapSet.new(~w(WantedBy RequiredBy Also Alias DefaultInstance)),
     "Socket" =>
@@ -223,12 +223,38 @@ defmodule Systemd.UnitFile.Validator do
        when directive in [
               "RemainAfterExit",
               "GuessMainPID",
+              "Delegate",
+              "CPUAccounting",
+              "MemoryAccounting",
+              "TasksAccounting",
+              "IOAccounting",
+              "IPAccounting",
               "NoNewPrivileges",
               "PrivateTmp",
               "PrivateDevices"
             ] do
     boolean("Service", directive, value, span)
   end
+
+  defp value_errors("Service", directive, value, span)
+       when directive in [
+              "MemoryMin",
+              "MemoryLow",
+              "MemoryHigh",
+              "MemoryMax",
+              "MemorySwapMax",
+              "TasksMax"
+            ] do
+    resource_limit("Service", directive, value, span)
+  end
+
+  defp value_errors("Service", directive, value, span)
+       when directive in ["CPUWeight", "IOWeight"] do
+    positive_integer("Service", directive, value, span)
+  end
+
+  defp value_errors("Service", "CPUQuota", value, span),
+    do: percentage("Service", "CPUQuota", value, span)
 
   defp value_errors("Service", "KillMode", value, span) do
     one_of("Service", "KillMode", value, ~w(control-group mixed process none), span)
@@ -364,6 +390,40 @@ defmodule Systemd.UnitFile.Validator do
           span
         )
       ]
+    end
+  end
+
+  defp resource_limit(_section, _directive, "infinity", _span), do: []
+
+  defp resource_limit(section, directive, value, span) do
+    if ValueParser.resource_quantity?(value) do
+      []
+    else
+      [
+        value_error(
+          section,
+          directive,
+          value,
+          "expected bytes, K/M/G/T/P/E suffix, or infinity",
+          span
+        )
+      ]
+    end
+  end
+
+  defp positive_integer(section, directive, value, span) do
+    if ValueParser.positive_integer?(value) do
+      []
+    else
+      [value_error(section, directive, value, "expected a positive integer", span)]
+    end
+  end
+
+  defp percentage(section, directive, value, span) do
+    if ValueParser.percentage?(value) do
+      []
+    else
+      [value_error(section, directive, value, "expected a percentage such as 50%", span)]
     end
   end
 

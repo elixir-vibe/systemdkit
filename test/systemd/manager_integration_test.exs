@@ -6,6 +6,7 @@ defmodule Systemd.ManagerIntegrationTest do
     Job,
     JobStatus,
     Manager,
+    Properties,
     TransientUnit,
     Unit,
     UnitFileOperation,
@@ -96,6 +97,40 @@ defmodule Systemd.ManagerIntegrationTest do
     end
   end
 
+  test "starts a transient unit with resource controls" do
+    assert {:ok, conn} = Manager.connect()
+
+    name = "systemd-elixir-resource-test-#{System.unique_integer([:positive])}.service"
+
+    properties = [
+      TransientUnit.string("Description", "systemd Elixir resource integration test"),
+      TransientUnit.string("Type", "oneshot"),
+      TransientUnit.boolean("RemainAfterExit", true),
+      TransientUnit.memory_max(67_108_864),
+      TransientUnit.tasks_max(64),
+      TransientUnit.exec_start("/bin/true", ["/bin/true"])
+    ]
+
+    case Manager.start_transient_unit(conn, name, properties) do
+      {:ok, %Job{} = job} ->
+        assert :ok = Job.await(conn, job, timeout: 5_000)
+        assert {:ok, unit} = Manager.get_unit(conn, name)
+
+        assert {:ok, 67_108_864} =
+                 Properties.get(
+                   conn,
+                   unit.object_path,
+                   "org.freedesktop.systemd1.Service",
+                   "MemoryMax"
+                 )
+
+        assert :ok = Manager.stop_unit(conn, name) |> await_or_ok(conn)
+
+      {:error, %Error{} = error} ->
+        assert Error.permission?(error)
+    end
+  end
+
   test "starts and awaits a harmless transient unit" do
     assert {:ok, conn} = Manager.connect()
 
@@ -116,6 +151,9 @@ defmodule Systemd.ManagerIntegrationTest do
         :ok
     end
   end
+
+  defp await_or_ok({:ok, %Job{} = job}, conn), do: Job.await(conn, job, timeout: 5_000)
+  defp await_or_ok({:error, %Error{} = error}, _conn), do: {:error, error}
 
   defp assert_operation_or_permission({:ok, %UnitFileOperation{changes: changes}})
        when is_list(changes), do: :ok

@@ -159,6 +159,33 @@ defmodule Systemd.UnitFileTest do
              "[Service]\nPIDFile=/run/app.pid\nSyslogIdentifier=app\nLimitNOFILE=1048576\nLimitMEMLOCK=infinity\nOOMPolicy=stop\n"
   end
 
+  test "validates common cgroup and resource-control directives" do
+    assert :ok =
+             UnitFile.parse!(
+               "[Service]\nExecStart=/bin/true\nCPUAccounting=yes\nCPUWeight=100\nCPUQuota=50%\nMemoryAccounting=true\nMemoryMax=256M\nMemorySwapMax=infinity\nTasksMax=64\nIOAccounting=on\nIOWeight=200\nDelegate=no\n"
+             )
+             |> UnitFile.validate(:service)
+
+    assert {:error, errors} =
+             UnitFile.parse!(
+               "[Service]\nExecStart=/bin/true\nCPUAccounting=maybe\nCPUWeight=heavy\nCPUQuota=half\nMemoryMax=lots\nTasksMax=many\n"
+             )
+             |> UnitFile.validate(:service)
+
+    for directive <- ["CPUAccounting", "CPUWeight", "CPUQuota", "MemoryMax", "TasksMax"] do
+      assert Enum.any?(
+               errors,
+               &match?(
+                 %Systemd.UnitFile.ValidationError{
+                   reason: :invalid_directive_value,
+                   directive: ^directive
+                 },
+                 &1
+               )
+             )
+    end
+  end
+
   test "validates unit file sections and directives" do
     assert :ok =
              UnitFile.parse!("[Service]\nExecStart=/bin/true\nLimitNOFILE=1048576\n")

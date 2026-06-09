@@ -32,6 +32,24 @@ defmodule Systemd.TransientUnit do
   def uint64(name, value), do: property(name, "t", value)
 
   @doc """
+  Creates a memory limit property such as `MemoryMax`.
+  """
+  @spec memory_max(non_neg_integer()) :: Property.t()
+  def memory_max(bytes), do: uint64("MemoryMax", bytes)
+
+  @doc """
+  Creates a task-count limit property such as `TasksMax`.
+  """
+  @spec tasks_max(non_neg_integer()) :: Property.t()
+  def tasks_max(tasks), do: uint64("TasksMax", tasks)
+
+  @doc """
+  Creates a CPU quota property in microseconds per second.
+  """
+  @spec cpu_quota_per_sec_usec(non_neg_integer()) :: Property.t()
+  def cpu_quota_per_sec_usec(usec), do: uint64("CPUQuotaPerSecUSec", usec)
+
+  @doc """
   Creates an `ExecStart` property.
   """
   @spec exec_start(String.t(), [String.t()], boolean()) :: Property.t()

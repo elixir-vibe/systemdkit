@@ -14,6 +14,20 @@ defmodule Systemd.TransientUnitTest do
            ]
   end
 
+  test "builds resource-control properties" do
+    assert Property.to_dbus(TransientUnit.memory_max(67_108_864)) == [
+             "MemoryMax",
+             {"t", 67_108_864}
+           ]
+
+    assert Property.to_dbus(TransientUnit.tasks_max(64)) == ["TasksMax", {"t", 64}]
+
+    assert Property.to_dbus(TransientUnit.cpu_quota_per_sec_usec(500_000)) == [
+             "CPUQuotaPerSecUSec",
+             {"t", 500_000}
+           ]
+  end
+
   test "builds typed auxiliary units" do
     aux = AuxUnit.new("helper.service", [TransientUnit.string("Description", "helper")])
 
