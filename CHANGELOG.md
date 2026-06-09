@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.2
 
 - Added `Systemd.UnitName` helpers for formatting typed, template, and instance unit names.
 
