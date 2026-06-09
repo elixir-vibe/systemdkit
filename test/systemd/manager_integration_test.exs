@@ -97,6 +97,69 @@ defmodule Systemd.ManagerIntegrationTest do
     end
   end
 
+  test "links, starts, reads, stops, and disables a runtime unit file" do
+    assert {:ok, conn} = Manager.connect()
+
+    name = "systemd-elixir-linked-test-#{System.unique_integer([:positive])}.service"
+    path = Path.join(System.tmp_dir!(), name)
+
+    File.write!(
+      path,
+      "[Unit]\nDescription=systemdkit linked integration test\n[Service]\nType=oneshot\nExecStart=/bin/true\nRemainAfterExit=yes\n"
+    )
+
+    try do
+      case Manager.link_unit_files(conn, [path], runtime: true, force: true) do
+        {:ok, %UnitFileOperation{}} ->
+          assert :ok = Manager.reload(conn)
+          assert {:ok, state} = Manager.unit_file_state(conn, name)
+          assert state in ["linked", "linked-runtime", "static", "disabled"]
+
+          assert {:ok, job} = Manager.start_unit(conn, name)
+          assert :ok = Job.await(conn, job, timeout: 5_000)
+          assert {:ok, unit} = Manager.get_unit(conn, name)
+          assert {:ok, unit_state} = UnitObject.state(conn, unit)
+          assert unit_state.active_state in ["active", "activating"]
+
+          assert :ok = Manager.stop_unit(conn, name) |> await_or_ok(conn)
+          assert_operation_or_permission(Manager.disable_unit_files(conn, [name], runtime: true))
+
+        {:error, %Error{} = error} ->
+          assert Error.permission?(error)
+      end
+    after
+      File.rm(path)
+    end
+  end
+
+  test "starts, restarts, kills, and resets a long-running transient unit" do
+    assert {:ok, conn} = Manager.connect()
+
+    name = "systemd-elixir-lifecycle-test-#{System.unique_integer([:positive])}.service"
+
+    properties = [
+      TransientUnit.string("Description", "systemd Elixir lifecycle integration test"),
+      TransientUnit.string("Type", "simple"),
+      TransientUnit.exec_start("/bin/sleep", ["/bin/sleep", "60"])
+    ]
+
+    case Manager.start_transient_unit(conn, name, properties) do
+      {:ok, %Job{} = job} ->
+        assert :ok = Job.await_signal(conn, job, timeout: 5_000)
+        assert {:ok, unit} = Manager.get_unit(conn, name)
+        assert {:ok, state} = UnitObject.state(conn, unit)
+        assert state.active_state == "active"
+
+        assert :ok = Manager.try_restart_unit(conn, name) |> await_or_ok(conn)
+        assert :ok = Manager.kill_unit(conn, name, "main", 15)
+        assert :ok = eventually_inactive(conn, unit, 5_000)
+        assert :ok = Manager.reset_failed_unit(conn, name)
+
+      {:error, %Error{} = error} ->
+        assert Error.permission?(error)
+    end
+  end
+
   test "starts a transient unit with resource controls" do
     assert {:ok, conn} = Manager.connect()
 
@@ -167,6 +230,32 @@ defmodule Systemd.ManagerIntegrationTest do
       {:error,
        %Systemd.Error{dbus_name: "org.freedesktop.DBus.Error.InteractiveAuthorizationRequired"}} ->
         :ok
+    end
+  end
+
+  defp eventually_inactive(conn, unit, timeout) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_eventually_inactive(conn, unit, deadline)
+  end
+
+  defp do_eventually_inactive(conn, unit, deadline) do
+    case UnitObject.state(conn, unit) do
+      {:ok, %{active_state: state}} when state in ["inactive", "failed"] ->
+        :ok
+
+      {:ok, _state} ->
+        if System.monotonic_time(:millisecond) >= deadline do
+          {:error, :timeout}
+        else
+          Process.sleep(100)
+          do_eventually_inactive(conn, unit, deadline)
+        end
+
+      {:error, %Error{reason: reason}} when reason in [:unknown_object, :not_found] ->
+        :ok
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
