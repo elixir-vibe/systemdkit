@@ -3,6 +3,7 @@ defmodule Systemd.DBus.Signature do
 
   @supported_complex_signatures MapSet.new([
                                   "a(ssssssouso)",
+                                  "a(ss)",
                                   "a{sv}",
                                   "a(sv)",
                                   "a(sa(sv))",

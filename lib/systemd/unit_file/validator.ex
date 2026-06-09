@@ -25,20 +25,20 @@ defmodule Systemd.UnitFile.Validator do
   @known_directives %{
     "Unit" =>
       MapSet.new(
-        ~w(Description Documentation Requires Wants After Before BindsTo PartOf Conflicts ConditionPathExists AssertPathExists StartLimitIntervalSec StartLimitBurst)
+        ~w(Description Documentation Requires Wants After Before BindsTo PartOf Conflicts RequiresMountsFor ConditionPathExists AssertPathExists StartLimitIntervalSec StartLimitBurst)
       ),
     "Service" =>
       MapSet.new(
-        ~w(Type ExecStart ExecStartPre ExecStartPost ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory Environment EnvironmentFile TimeoutStartSec TimeoutStopSec KillSignal KillMode RemainAfterExit PIDFile RuntimeDirectory StateDirectory CacheDirectory LogsDirectory StandardOutput StandardError LimitNOFILE)
+        ~w(Type ExecStart ExecStartPre ExecStartPost ExecCondition ExecReload ExecStop ExecStopPost Restart RestartSec User Group WorkingDirectory RootDirectory Environment EnvironmentFile PassEnvironment UnsetEnvironment TimeoutStartSec TimeoutStopSec TimeoutAbortSec KillSignal KillMode RemainAfterExit GuessMainPID PIDFile RuntimeDirectory RuntimeDirectoryPreserve StateDirectory CacheDirectory LogsDirectory ConfigurationDirectory StandardOutput StandardError SyslogIdentifier LimitNOFILE LimitNPROC LimitMEMLOCK LimitCORE LimitCPU LimitAS LimitFSIZE NoNewPrivileges PrivateTmp PrivateDevices ProtectSystem ProtectHome AmbientCapabilities CapabilityBoundingSet ReadWritePaths ReadOnlyPaths InaccessiblePaths OOMPolicy)
       ),
     "Install" => MapSet.new(~w(WantedBy RequiredBy Also Alias DefaultInstance)),
     "Socket" =>
       MapSet.new(
-        ~w(ListenStream ListenDatagram ListenSequentialPacket SocketUser SocketGroup SocketMode Accept Service)
+        ~w(ListenStream ListenDatagram ListenSequentialPacket ListenFIFO ListenSpecial ListenNetlink ListenMessageQueue ListenUSBFunction SocketUser SocketGroup SocketMode DirectoryMode Accept Writable MaxConnections MaxConnectionsPerSource KeepAlive NoDelay FreeBind BindIPv6Only Backlog Service)
       ),
     "Timer" =>
       MapSet.new(
-        ~w(OnActiveSec OnBootSec OnStartupSec OnUnitActiveSec OnUnitInactiveSec OnCalendar Unit Persistent AccuracySec RandomizedDelaySec)
+        ~w(OnActiveSec OnBootSec OnStartupSec OnUnitActiveSec OnUnitInactiveSec OnCalendar Unit Persistent AccuracySec RandomizedDelaySec FixedRandomDelay WakeSystem RemainAfterElapse)
       ),
     "Target" => MapSet.new(~w(AllowIsolate)),
     "Mount" =>
@@ -215,8 +215,23 @@ defmodule Systemd.UnitFile.Validator do
   end
 
   defp value_errors("Service", directive, value, span)
-       when directive in ["TimeoutStartSec", "TimeoutStopSec", "RestartSec"] do
+       when directive in ["TimeoutStartSec", "TimeoutStopSec", "TimeoutAbortSec", "RestartSec"] do
     duration("Service", directive, value, span)
+  end
+
+  defp value_errors("Service", directive, value, span)
+       when directive in [
+              "RemainAfterExit",
+              "GuessMainPID",
+              "NoNewPrivileges",
+              "PrivateTmp",
+              "PrivateDevices"
+            ] do
+    boolean("Service", directive, value, span)
+  end
+
+  defp value_errors("Service", "KillMode", value, span) do
+    one_of("Service", "KillMode", value, ~w(control-group mixed process none), span)
   end
 
   defp value_errors("Timer", directive, value, span)
@@ -232,19 +247,37 @@ defmodule Systemd.UnitFile.Validator do
     duration("Timer", directive, value, span)
   end
 
-  defp value_errors("Timer", "Persistent", value, span),
-    do: boolean("Timer", "Persistent", value, span)
+  defp value_errors("Timer", directive, value, span)
+       when directive in ["Persistent", "FixedRandomDelay", "WakeSystem", "RemainAfterElapse"] do
+    boolean("Timer", directive, value, span)
+  end
 
   defp value_errors("Timer", "OnCalendar", value, span),
     do: non_empty("Timer", "OnCalendar", value, span)
 
   defp value_errors("Socket", directive, value, span)
-       when directive in ["ListenStream", "ListenDatagram", "ListenSequentialPacket"] do
+       when directive in [
+              "ListenStream",
+              "ListenDatagram",
+              "ListenSequentialPacket",
+              "ListenFIFO",
+              "ListenSpecial",
+              "ListenNetlink",
+              "ListenMessageQueue",
+              "ListenUSBFunction"
+            ] do
     non_empty("Socket", directive, value, span)
   end
 
-  defp value_errors("Socket", "SocketMode", value, span),
-    do: octal_mode("Socket", "SocketMode", value, span)
+  defp value_errors("Socket", directive, value, span)
+       when directive in ["SocketMode", "DirectoryMode"] do
+    octal_mode("Socket", directive, value, span)
+  end
+
+  defp value_errors("Socket", directive, value, span)
+       when directive in ["Accept", "Writable", "KeepAlive", "NoDelay", "FreeBind"] do
+    boolean("Socket", directive, value, span)
+  end
 
   defp value_errors("Install", directive, value, span)
        when directive in ["WantedBy", "RequiredBy", "Also", "Alias"] do

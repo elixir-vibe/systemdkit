@@ -92,6 +92,44 @@ defmodule Systemd.UnitFileTest do
              "[Unit]\nDescription=My app\nAfter=network.target\nAfter=postgresql.service\n[Service]\nExecStart=/opt/app/bin/app start\nRestart=always\nLimitNOFILE=1048576\n[Install]\nWantedBy=multi-user.target\n"
   end
 
+  test "builds common socket and timer unit sections" do
+    socket =
+      UnitFile.socket(
+        unit: [description: "App socket"],
+        socket: [listen_stream: 4_000, accept: false, socket_mode: "0660"],
+        install: [wanted_by: "sockets.target"]
+      )
+
+    assert UnitFile.to_string(socket) ==
+             "[Unit]\nDescription=App socket\n[Socket]\nListenStream=4000\nAccept=false\nSocketMode=0660\n[Install]\nWantedBy=sockets.target\n"
+
+    timer =
+      UnitFile.timer(
+        unit: [description: "App timer"],
+        timer: [on_calendar: "*:0/5", persistent: true, randomized_delay_sec: "30s"],
+        install: [wanted_by: "timers.target"]
+      )
+
+    assert UnitFile.to_string(timer) ==
+             "[Unit]\nDescription=App timer\n[Timer]\nOnCalendar=*:0/5\nPersistent=true\nRandomizedDelaySec=30s\n[Install]\nWantedBy=timers.target\n"
+  end
+
+  test "preserves known systemd acronym directive names" do
+    unit_file =
+      UnitFile.service(
+        service: [
+          pid_file: "/run/app.pid",
+          syslog_identifier: "app",
+          limit_nofile: 1_048_576,
+          limit_memlock: :infinity,
+          oom_policy: :stop
+        ]
+      )
+
+    assert UnitFile.to_string(unit_file) ==
+             "[Service]\nPIDFile=/run/app.pid\nSyslogIdentifier=app\nLimitNOFILE=1048576\nLimitMEMLOCK=infinity\nOOMPolicy=stop\n"
+  end
+
   test "validates unit file sections and directives" do
     assert :ok =
              UnitFile.parse!("[Service]\nExecStart=/bin/true\nLimitNOFILE=1048576\n")

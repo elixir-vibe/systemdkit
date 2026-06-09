@@ -3,7 +3,7 @@ defmodule Systemd.Manager do
   Client for `org.freedesktop.systemd1.Manager`.
   """
 
-  alias Systemd.{DBus, Error, Job, Unit, UnitFileOperation, UnitObject}
+  alias Systemd.{DBus, Error, Job, Unit, UnitFileOperation, UnitFileStatus, UnitObject}
   alias Systemd.Manager.Options
   alias Systemd.TransientUnit.{AuxUnit, Property}
 
@@ -47,7 +47,37 @@ defmodule Systemd.Manager do
   @spec get_unit(pid(), String.t()) :: {:ok, UnitObject.t()} | {:error, Error.t()}
   def get_unit(conn, unit_name) when is_pid(conn) and is_binary(unit_name) do
     with {:ok, [object_path]} <- call(conn, "GetUnit", [unit_name], "s") do
-      {:ok, %UnitObject{name: unit_name, object_path: object_path}}
+      {:ok, UnitObject.new(object_path, unit_name)}
+    end
+  end
+
+  @doc """
+  Gets the D-Bus object path for a unit by main process ID.
+  """
+  @spec get_unit_by_pid(pid(), non_neg_integer()) :: {:ok, UnitObject.t()} | {:error, Error.t()}
+  def get_unit_by_pid(conn, pid) when is_pid(conn) and is_integer(pid) and pid >= 0 do
+    with {:ok, [object_path]} <- call(conn, "GetUnitByPID", [pid], "u") do
+      {:ok, UnitObject.new(object_path)}
+    end
+  end
+
+  @doc """
+  Returns unit files known to systemd and their enablement state.
+  """
+  @spec list_unit_files(pid()) :: {:ok, [UnitFileStatus.t()]} | {:error, Error.t()}
+  def list_unit_files(conn) when is_pid(conn) do
+    with {:ok, [unit_files]} <- call(conn, "ListUnitFiles") do
+      {:ok, Enum.map(unit_files, &UnitFileStatus.from_dbus/1)}
+    end
+  end
+
+  @doc """
+  Returns the enablement state of a unit file.
+  """
+  @spec unit_file_state(pid(), String.t()) :: {:ok, String.t()} | {:error, Error.t()}
+  def unit_file_state(conn, unit_name) when is_pid(conn) and is_binary(unit_name) do
+    with {:ok, [state]} <- call(conn, "GetUnitFileState", [unit_name], "s") do
+      {:ok, state}
     end
   end
 

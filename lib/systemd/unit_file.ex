@@ -21,6 +21,18 @@ defmodule Systemd.UnitFile do
   defdelegate service(opts), to: Builder
 
   @doc """
+  Builds a socket unit file from common `Unit`, `Socket`, and `Install` sections.
+  """
+  @spec socket(keyword()) :: t()
+  defdelegate socket(opts), to: Builder
+
+  @doc """
+  Builds a timer unit file from common `Unit`, `Timer`, and `Install` sections.
+  """
+  @spec timer(keyword()) :: t()
+  defdelegate timer(opts), to: Builder
+
+  @doc """
   Parses unit file text.
   """
   @spec parse(String.t()) :: {:ok, t()} | {:error, term()}

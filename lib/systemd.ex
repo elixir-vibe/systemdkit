@@ -74,6 +74,22 @@ defmodule Systemd do
   end
 
   @doc """
+  Returns unit files known to systemd using a short-lived connection.
+  """
+  @spec list_unit_files(keyword()) :: {:ok, [Systemd.UnitFileStatus.t()]} | {:error, Error.t()}
+  def list_unit_files(opts \\ []) do
+    with_connection(opts, &Manager.list_unit_files/1)
+  end
+
+  @doc """
+  Returns the enablement state of a unit file using a short-lived connection.
+  """
+  @spec unit_file_state(String.t(), keyword()) :: {:ok, String.t()} | {:error, Error.t()}
+  def unit_file_state(name, opts \\ []) do
+    with_connection(opts, &Manager.unit_file_state(&1, name))
+  end
+
+  @doc """
   Starts a unit and waits for the returned job by default.
   """
   @spec start_unit(String.t(), keyword()) :: :ok | {:ok, Systemd.Job.t()} | {:error, Error.t()}

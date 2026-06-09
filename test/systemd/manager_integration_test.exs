@@ -1,7 +1,16 @@
 defmodule Systemd.ManagerIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias Systemd.{Error, Job, Manager, TransientUnit, Unit, UnitFileOperation, UnitObject}
+  alias Systemd.{
+    Error,
+    Job,
+    Manager,
+    TransientUnit,
+    Unit,
+    UnitFileOperation,
+    UnitFileStatus,
+    UnitObject
+  }
 
   @moduletag :integration
 
@@ -11,6 +20,19 @@ defmodule Systemd.ManagerIntegrationTest do
     assert {:ok, units} = Manager.list_units()
     assert Enum.any?(units, &match?(%Unit{name: "dbus.service"}, &1))
     assert Enum.any?(units, &(&1.name == "init.scope" or &1.name == "-.slice"))
+  end
+
+  test "lists unit files and reads unit-file state" do
+    assert {:ok, conn} = Manager.connect()
+
+    assert {:ok, unit_files} = Manager.list_unit_files(conn)
+
+    assert Enum.any?(unit_files, fn %UnitFileStatus{path: path, state: state} ->
+             is_binary(path) and String.ends_with?(path, ".service") and is_binary(state)
+           end)
+
+    assert {:ok, state} = Manager.unit_file_state(conn, "dbus.service")
+    assert is_binary(state)
   end
 
   test "gets a unit object and reads common properties" do

@@ -6,6 +6,7 @@ defmodule Systemd.DBus.SignatureTest do
   test "documents signatures this package intentionally uses" do
     assert Signature.supported?("")
     assert Signature.supported?("asbb")
+    assert Signature.supported?("a(ss)")
     assert Signature.supported?("ssa(sv)a(sa(sv))")
     refute Signature.supported?("a{sa{sv}}")
   end

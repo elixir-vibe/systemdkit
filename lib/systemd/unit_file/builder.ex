@@ -8,7 +8,33 @@ defmodule Systemd.UnitFile.Builder do
   @type directives :: keyword() | %{optional(atom() | String.t()) => term()}
 
   @directive_names %{
-    limit_nofile: "LimitNOFILE"
+    cpu_accounting: "CPUAccounting",
+    io_accounting: "IOAccounting",
+    ip_accounting: "IPAccounting",
+    limit_as: "LimitAS",
+    limit_core: "LimitCORE",
+    limit_cpu: "LimitCPU",
+    limit_data: "LimitDATA",
+    limit_fsize: "LimitFSIZE",
+    limit_locks: "LimitLOCKS",
+    limit_memlock: "LimitMEMLOCK",
+    limit_msgqueue: "LimitMSGQUEUE",
+    limit_nice: "LimitNICE",
+    limit_nofile: "LimitNOFILE",
+    limit_nproc: "LimitNPROC",
+    limit_rss: "LimitRSS",
+    limit_rtprio: "LimitRTPRIO",
+    limit_rttime: "LimitRTTIME",
+    limit_sigpending: "LimitSIGPENDING",
+    oom_policy: "OOMPolicy",
+    pid_file: "PIDFile",
+    runtime_directory_preserve: "RuntimeDirectoryPreserve",
+    selinux_context: "SELinuxContext",
+    smack_process_label: "SmackProcessLabel",
+    syslog_identifier: "SyslogIdentifier",
+    tty_path: "TTYPath",
+    usb_function_descriptors: "USBFunctionDescriptors",
+    usb_function_strings: "USBFunctionStrings"
   }
 
   @doc """
@@ -19,6 +45,28 @@ defmodule Systemd.UnitFile.Builder do
     UnitFile.parse!("")
     |> maybe_append_section("Unit", Keyword.get(opts, :unit, []))
     |> maybe_append_section("Service", Keyword.get(opts, :service, []))
+    |> maybe_append_section("Install", Keyword.get(opts, :install, []))
+  end
+
+  @doc """
+  Builds a socket unit file from common `Unit`, `Socket`, and `Install` sections.
+  """
+  @spec socket(keyword()) :: UnitFile.t()
+  def socket(opts) when is_list(opts) do
+    UnitFile.parse!("")
+    |> maybe_append_section("Unit", Keyword.get(opts, :unit, []))
+    |> maybe_append_section("Socket", Keyword.get(opts, :socket, []))
+    |> maybe_append_section("Install", Keyword.get(opts, :install, []))
+  end
+
+  @doc """
+  Builds a timer unit file from common `Unit`, `Timer`, and `Install` sections.
+  """
+  @spec timer(keyword()) :: UnitFile.t()
+  def timer(opts) when is_list(opts) do
+    UnitFile.parse!("")
+    |> maybe_append_section("Unit", Keyword.get(opts, :unit, []))
+    |> maybe_append_section("Timer", Keyword.get(opts, :timer, []))
     |> maybe_append_section("Install", Keyword.get(opts, :install, []))
   end
 
