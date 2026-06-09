@@ -1,7 +1,7 @@
 defmodule Systemd.MixProject do
   use Mix.Project
 
-  @version "0.1.0-pre.1"
+  @version "0.1.0"
   @source_url "https://github.com/elixir-vibe/systemd"
 
   def project do
@@ -18,7 +18,6 @@ defmodule Systemd.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger, :rebus]
@@ -31,7 +30,6 @@ defmodule Systemd.MixProject do
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:ex_doc, "~> 0.38", only: :dev, runtime: false},
@@ -44,8 +42,6 @@ defmodule Systemd.MixProject do
       {:rebus, "~> 0.2.0"},
       {:vibe_kit, "== 0.1.2", only: [:dev, :test], runtime: false},
       {:igniter, "~> 0.6", only: [:dev, :test], runtime: false}
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
   end
 
@@ -53,7 +49,8 @@ defmodule Systemd.MixProject do
     [
       name: "systemdkit",
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url}
+      links: %{"GitHub" => @source_url},
+      files: ~w(lib guides examples .formatter.exs mix.exs README.md LICENSE CHANGELOG.md)
     ]
   end
 
@@ -69,7 +66,48 @@ defmodule Systemd.MixProject do
         "guides/xamal-style-deployment.md",
         "guides/dbus-manager.md"
       ],
-      groups_for_extras: [Guides: ~r/guides\//]
+      groups_for_extras: [Guides: ~r/guides\//],
+      groups_for_modules: [
+        "D-Bus": [
+          Systemd.DBus,
+          Systemd.DBus.Result,
+          Systemd.Manager,
+          Systemd.Signal,
+          Systemd.Properties
+        ],
+        "Unit files": [
+          Systemd.UnitFile,
+          Systemd.UnitFile.Blank,
+          Systemd.UnitFile.Builder,
+          Systemd.UnitFile.Comment,
+          Systemd.UnitFile.Directive,
+          Systemd.UnitFile.ParseError,
+          Systemd.UnitFile.Raw,
+          Systemd.UnitFile.Section,
+          Systemd.UnitFile.Span,
+          Systemd.UnitFile.ValidationError,
+          Systemd.UnitFile.Value
+        ],
+        "Runtime structs": [
+          Systemd.Error,
+          Systemd.Job,
+          Systemd.JobStatus,
+          Systemd.ServiceState,
+          Systemd.SocketState,
+          Systemd.TimerState,
+          Systemd.Unit,
+          Systemd.UnitFileChange,
+          Systemd.UnitFileOperation,
+          Systemd.UnitFileStatus,
+          Systemd.UnitObject,
+          Systemd.UnitState
+        ],
+        "Transient units": [
+          Systemd.TransientUnit,
+          Systemd.TransientUnit.AuxUnit,
+          Systemd.TransientUnit.Property
+        ]
+      ]
     ]
   end
 

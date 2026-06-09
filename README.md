@@ -1,46 +1,94 @@
-# Systemd
+# systemdkit
 
-Pure Elixir tools for working with systemd.
+Pure Elixir tools for systemd unit files and D-Bus manager control.
 
-Hex package name: `systemdkit`. The Mix application and public modules remain `:systemd` / `Systemd`.
+`systemdkit` is for Elixir applications and deployment tools that need to generate unit files, inspect systemd state, or control systemd directly over D-Bus without shelling out to `systemctl`.
+
+## Installation
+
+The Hex package is named `systemdkit`; the Mix application and modules are `:systemd` / `Systemd`.
 
 ```elixir
-{:systemdkit, "~> 0.1.0-pre"}
+def deps do
+  [
+    {:systemd, "~> 0.1.0", hex: :systemdkit}
+  ]
+end
 ```
 
-The package exposes a small D-Bus backed manager client:
+## Unit files
+
+Build systemd units with typed helpers, render them, and validate them before installation:
 
 ```elixir
-{:ok, conn} = Systemd.Manager.connect()
-{:ok, units} = Systemd.Manager.list_units(conn)
-{:ok, unit} = Systemd.Manager.get_unit(conn, "dbus.service")
-{:ok, state} = Systemd.UnitObject.state(conn, unit)
-{:ok, service_state} = Systemd.UnitObject.service_state(conn, unit)
-```
-
-It also includes a NimbleParsec-backed unit file parser/generator:
-
-```elixir
-{:ok, unit_file} = Systemd.UnitFile.parse("[Service]\nExecStart=/bin/app start\n")
-Systemd.UnitFile.to_string(unit_file)
-
 unit_file =
   Systemd.UnitFile.service(
-    unit: [description: "My app"],
-    service: [exec_start: "/bin/app start", restart: :always],
+    unit: [description: "My app", after: "network.target"],
+    service: [
+      type: :exec,
+      user: "deploy",
+      working_directory: "/opt/my-app/current",
+      exec_start: "/opt/my-app/current/bin/my_app start",
+      restart: "on-failure",
+      memory_max: "512M",
+      tasks_max: 512,
+      no_new_privileges: true,
+      protect_system: :strict
+    ],
     install: [wanted_by: "multi-user.target"]
   )
+
+:ok = Systemd.UnitFile.validate(unit_file, :service)
+Systemd.UnitFile.to_string(unit_file)
 ```
 
-The package depends on [`rebus`](https://hex.pm/packages/rebus) for the D-Bus wire protocol instead of shelling out to `systemctl`.
+Parsing is loss-aware: comments, blank lines, duplicate directives, reset directives, and source spans are preserved.
 
-APIs return idiomatic `{:ok, value}` / `{:error, %Systemd.Error{}}` tuples. Permission and polkit failures are classified with `category: :permission` and can be checked with `Systemd.Error.permission?/1`.
+```elixir
+{:ok, unit_file} = Systemd.UnitFile.parse("[Service]\nExecStart=/bin/true\n")
+Systemd.UnitFile.get_all(unit_file, "Service", "ExecStart")
+```
 
-See `examples/` for service, timer, and user-bus snippets, `guides/dbus-manager.md` for D-Bus manager operations, and `guides/xamal-style-deployment.md` for a deployment-oriented template unit example.
+Builders are available for service, socket, timer, mount, path, and target units.
 
-## Permissions
+## D-Bus manager control
 
-Systemd control happens over D-Bus. Read-only calls such as listing units usually work as an unprivileged user. Mutating calls such as daemon reload, starting system units, enabling units, or writing to `/etc/systemd/system` may require root or a polkit rule for the caller. The package returns structured `Systemd.Error` values for D-Bus policy failures instead of retrying through `sudo`.
+Use the top-level API for short-lived D-Bus operations:
+
+```elixir
+{:ok, units} = Systemd.list_units()
+{:ok, unit_files} = Systemd.list_unit_files()
+{:ok, state} = Systemd.unit_state("dbus.service")
+
+:ok = Systemd.reload()
+:ok = Systemd.start_unit("my_app.service")
+:ok = Systemd.restart_unit("my_app.service")
+```
+
+Use `Systemd.Manager` when you want to reuse a connection or inspect jobs:
+
+```elixir
+Systemd.with_connection([], fn conn ->
+  with {:ok, job} <- Systemd.Manager.restart_unit(conn, "my_app.service"),
+       :ok <- Systemd.Job.await_signal(conn, job, timeout: 10_000) do
+    :ok
+  end
+end)
+```
+
+## Errors and permissions
+
+APIs return `{:ok, value}` or `{:error, %Systemd.Error{}}`. Permission and polkit failures are classified as `:permission`:
+
+```elixir
+case Systemd.start_unit("my_app.service") do
+  :ok -> :ok
+  {:error, error} ->
+    if Systemd.Error.permission?(error), do: {:error, :permission_denied}, else: {:error, error}
+end
+```
+
+Read-only calls often work unprivileged. Mutating system units typically require root or appropriate polkit rules. `systemdkit` reports those D-Bus errors directly; it does not retry through `sudo`.
 
 For user units, pass `bus: :session` when a systemd user session bus is available:
 
@@ -48,41 +96,27 @@ For user units, pass `bus: :session` when a systemd user session bus is availabl
 Systemd.list_units(bus: :session)
 ```
 
-## Unit files
+## Guides
 
-`Systemd.UnitFile` preserves comments, blank lines, duplicate directives, reset directives, and source spans. Validation is intentionally separate from parsing and includes directive-specific value checks for common service, socket, timer, and install keys:
+- [D-Bus manager operations](guides/dbus-manager.md)
+- [Xamal-style deployment units](guides/xamal-style-deployment.md)
 
-```elixir
-unit_file = Systemd.UnitFile.parse!("[Service]\nExecStart=/bin/true\n")
-:ok = Systemd.UnitFile.validate(unit_file, :service)
-```
+## Integration testing
 
-## Development
+The test suite includes optional integration tests against a real Linux systemd manager. They are excluded by default:
 
 ```sh
-mix deps.get
-mix ci
+mix test
 ```
 
-Integration tests are excluded by default because they require Linux with systemd and a system bus. For local development, run them inside the Lima Debian VM named `systemd-test`:
+Run them on Linux with systemd and a system bus:
 
 ```sh
-~/.local/bin/limactl shell systemd-test
-cd /Users/dannote/Development/systemd
 SYSTEMD_INTEGRATION=1 mix test
 ```
 
-Or from macOS, copy the source into the VM and run the full integration suite:
+This repository also includes a Lima helper used by maintainers:
 
 ```sh
 scripts/integration_test.sh
 ```
-
-Quick VM checks:
-
-```sh
-~/.local/bin/limactl shell systemd-test -- systemctl is-system-running
-~/.local/bin/limactl shell systemd-test -- busctl --system list --no-pager
-```
-
-See `CONTRIBUTING.md` before publishing a release.

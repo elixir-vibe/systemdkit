@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.0
+
+First stable release.
+
+- Added D-Bus-backed systemd manager APIs for unit lifecycle, unit-file operations, jobs, and signals.
+- Added loss-aware systemd unit-file parsing and rendering.
+- Added builders for service, socket, timer, mount, path, and target units.
+- Added parser-backed validation for common unit-file directives, including resource-control and sandboxing settings.
+- Added typed structs for units, jobs, unit-file operations, unit-file status, and unit/service/socket/timer state.
+- Added transient-unit helpers, including resource-control properties.
+- Added structured errors with permission/polkit classification.
+- Added real Linux/systemd integration tests and documentation guides.
+
 ## v0.1.0-pre.1
 
 - Removed VibeKit/Igniter scaffold dependencies from runtime package dependencies.
