@@ -45,6 +45,59 @@ defmodule Systemd.UnitFileTest do
            ]
   end
 
+  test "normalizes equivalent unit files" do
+    left = """
+    [Unit]
+    Description=Exograph public Elixir code search
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=simple
+    User=toys-exograph
+    Group=toys-exograph
+    WorkingDirectory=/opt/toys/src/exograph
+    EnvironmentFile=/etc/toys/exograph/env
+    ExecStart=/usr/local/bin/mix exograph.index.hex --mode latest --mirror https://hex.elixir.toys --prefix hex --backend duckdb --duckdb-shards 8 --duckdb-threads 2 --concurrency 8 --shard-dir /srv/toys/exograph/shards --manifest-path /srv/toys/exograph/hex-manifest.json --no-bm25 --web --port 4200
+    Restart=on-failure
+    RestartSec=10
+    NoNewPrivileges=true
+    PrivateTmp=true
+    ProtectSystem=full
+    ProtectHome=true
+    ReadWritePaths=/srv/toys/exograph /var/lib/toys/exograph /opt/toys/src/exograph
+
+    [Install]
+    WantedBy=multi-user.target
+    """
+
+    right = """
+    [Unit]
+    Wants=network-online.target
+    After=network-online.target
+    Description=Exograph public Elixir code search
+    [Service]
+    ReadWritePaths=/srv/toys/exograph
+    ReadWritePaths=/var/lib/toys/exograph
+    ReadWritePaths=/opt/toys/src/exograph
+    ProtectHome=true
+    ProtectSystem=full
+    PrivateTmp=true
+    NoNewPrivileges=true
+    RestartSec=10
+    Restart=on-failure
+    ExecStart=/usr/local/bin/mix exograph.index.hex --mode latest --mirror https://hex.elixir.toys --prefix hex --backend duckdb --duckdb-shards 8 --duckdb-threads 2 --concurrency 8 --shard-dir /srv/toys/exograph/shards --manifest-path /srv/toys/exograph/hex-manifest.json --no-bm25 --web --port 4200
+    EnvironmentFile=/etc/toys/exograph/env
+    WorkingDirectory=/opt/toys/src/exograph
+    Group=toys-exograph
+    User=toys-exograph
+    [Install]
+    WantedBy=multi-user.target
+    """
+
+    assert UnitFile.equivalent?(left, right)
+  end
+
   test "renders parsed unit files deterministically" do
     text = "[Unit]\nDescription=My app\n\n[Install]\nWantedBy=multi-user.target\n"
 

@@ -75,6 +75,28 @@ defmodule Systemd.UnitFile do
   defdelegate validate(unit_file, type \\ nil), to: Validator
 
   @doc """
+  Returns a normalized representation suitable for semantic-ish comparison.
+
+  This intentionally ignores trivia, directive ordering, and equivalent list
+  spellings for directives such as `Wants=` and `ReadWritePaths=`.
+  """
+  @spec normalize(t() | String.t()) :: map()
+  def normalize(text) when is_binary(text), do: text |> parse!() |> normalize()
+
+  def normalize(%__MODULE__{entries: entries}) do
+    entries
+    |> entries_with_sections()
+    |> Enum.reduce(%{}, &collect_normalized_entry/2)
+    |> Map.new(fn {section, directives} -> {section, drop_defaults(directives)} end)
+  end
+
+  @doc """
+  Compares two unit files after normalization.
+  """
+  @spec equivalent?(t() | String.t(), t() | String.t()) :: boolean()
+  def equivalent?(left, right), do: normalize(left) == normalize(right)
+
+  @doc """
   Renders a unit file.
   """
   @spec to_string(t()) :: String.t()
@@ -149,6 +171,66 @@ defmodule Systemd.UnitFile do
   defp entry_to_iodata(%Section{name: name}), do: ["[", name, "]\n"]
   defp entry_to_iodata(%Directive{name: name, value: value}), do: [name, "=", value, "\n"]
   defp entry_to_iodata(%Raw{content: content}), do: [content, "\n"]
+
+  @list_directives MapSet.new([
+                     "after",
+                     "before",
+                     "bindsto",
+                     "conflicts",
+                     "documentation",
+                     "environmentfile",
+                     "readwritepaths",
+                     "requires",
+                     "requiredby",
+                     "wants",
+                     "wantedby"
+                   ])
+
+  defp collect_normalized_entry({section, %Directive{}}, acc) when is_nil(section), do: acc
+
+  defp collect_normalized_entry({section, %Directive{} = directive}, acc) do
+    section = normalize_name(section)
+    key = normalize_name(directive.name)
+    values = normalize_directive_values(key, directive.value)
+
+    update_in(acc, [Access.key(section, %{}), Access.key(key, [])], &(values ++ &1))
+  end
+
+  defp collect_normalized_entry(_entry, acc), do: acc
+
+  defp normalize_directive_values(key, value) do
+    value = normalize_value(value)
+
+    values =
+      if MapSet.member?(@list_directives, key) do
+        String.split(value, ~r/\s+/, trim: true)
+      else
+        [value]
+      end
+
+    Enum.sort(values)
+  end
+
+  defp drop_defaults(%{"type" => ["simple"]} = directives),
+    do: directives |> Map.delete("type") |> sort_values()
+
+  defp drop_defaults(directives), do: sort_values(directives)
+
+  defp sort_values(directives),
+    do: Map.new(directives, fn {key, values} -> {key, Enum.sort(values)} end)
+
+  defp normalize_name(name) do
+    name
+    |> String.trim()
+    |> String.replace("_", "")
+    |> String.downcase()
+  end
+
+  defp normalize_value(value) do
+    value
+    |> String.trim()
+    |> String.replace(~r/\s+/, " ")
+  end
 
   defp entries_with_sections(entries) do
     {_section, entries} =
