@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.3
+
+- Added `Systemd.UnitFile.equivalent?/2` for semantic unit file comparison after normalization.
+
 ## v0.1.2
 
 - Added `Systemd.UnitName` helpers for formatting typed, template, and instance unit names.
