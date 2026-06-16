@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.4
+
+- Added `Systemd.Calendar` helpers for typed daily, weekly, and monthly timer calendar expressions.
+
 ## v0.1.3
 
 - Added `Systemd.UnitFile.equivalent?/2` for semantic unit file comparison after normalization.
